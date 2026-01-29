@@ -10,10 +10,19 @@ import logging
 from app.config import settings
 from app.api.v1 import rules
 # API Routes
-from app.api.v1 import companies, products, customers, periods, budgets, forecasts, reports,scenarios
+from app.api.v1 import companies, products, customers, periods, budgets, forecasts, reports, scenarios
 from app.api import auth
 from app.api.v1 import reports
 from app.api.v1 import scenarios
+
+# Dynamic Master Data Routes
+from app.api.v1.dynamic import (
+    meta_entities_router,
+    meta_attributes_router,
+    master_data_router,
+    fact_definitions_router,
+    fact_data_router
+)
 
 # Logger setup
 logging.basicConfig(level=logging.INFO)
@@ -50,6 +59,13 @@ app.include_router(reports.router, prefix="/api/v1")
 app.include_router(scenarios.router, prefix="/api/v1")
 app.include_router(rules.router, prefix="/api/v1")
 
+# Dynamic Master Data Routes
+app.include_router(meta_entities_router, prefix="/api/v1")
+app.include_router(meta_attributes_router, prefix="/api/v1")
+app.include_router(master_data_router, prefix="/api/v1")
+app.include_router(fact_definitions_router, prefix="/api/v1")
+app.include_router(fact_data_router, prefix="/api/v1")
+
 # Health Check Endpoint
 @app.get("/health", tags=["Health"])
 async def health_check():
@@ -77,6 +93,13 @@ async def root():
             "register": "/api/v1/auth/register",
             "login": "/api/v1/auth/login",
             "me": "/api/v1/auth/me"
+        },
+        "dynamic": {
+            "meta_entities": "/api/v1/meta-entities",
+            "meta_attributes": "/api/v1/meta-attributes",
+            "master_data": "/api/v1/master-data",
+            "fact_definitions": "/api/v1/fact-definitions",
+            "fact_data": "/api/v1/fact-data"
         }
     }
 
@@ -118,6 +141,13 @@ async def api_info():
             "customers": "/api/v1/customers",
             "periods": "/api/v1/periods",
             "budgets": "/api/v1/budgets",
+            "dynamic": {
+                "meta_entities": "/api/v1/meta-entities",
+                "meta_attributes": "/api/v1/meta-attributes",
+                "master_data": "/api/v1/master-data",
+                "fact_definitions": "/api/v1/fact-definitions",
+                "fact_data": "/api/v1/fact-data"
+            },
             "docs": "/api/docs"
         }
     }
@@ -151,6 +181,11 @@ def custom_openapi():
         "/api/v1/customers",
         "/api/v1/periods",
         "/api/v1/budgets",
+        "/api/v1/meta-entities",
+        "/api/v1/meta-attributes",
+        "/api/v1/master-data",
+        "/api/v1/fact-definitions",
+        "/api/v1/fact-data",
     ]
     
     for path, methods in openapi_schema.get("paths", {}).items():
