@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: budget_postgres
+    environment:
+      POSTGRES_USER: budgetuser
+      POSTGRES_PASSWORD: budgetpass123
+      POSTGRES_DB: budget_system
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - budget_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U budgetuser -d budget_system"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Message Broker
+  redis:
+    image: redis:7-alpine
+    container_name: budget_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - budget_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # pgAdmin - PostgreSQL Web Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: budget_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@budgetsystem.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - budget_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  budget_network:
+    driver: bridge

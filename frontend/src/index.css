@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Theme */
+:root {
+  --primary: #3B82F6;
+  --secondary: #1F2937;
+  --accent: #10B981;
+  --danger: #EF4444;
+  --warning: #F59E0B;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900;
+  @apply text-gray-100;
+  @apply min-h-screen;
+}
+
+/* Layout */
+.app-container {
+  @apply max-w-7xl mx-auto px-4 py-8;
+}
+
+.card {
+  @apply bg-slate-800 rounded-lg shadow-lg border border-slate-700 p-6 hover:border-slate-600 transition;
+}
+
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition;
+}
+
+.btn-secondary {
+  @apply bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition;
+}
+
+.btn-success {
+  @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition;
+}
+
+.input-field {
+  @apply bg-slate-700 border border-slate-600 text-white rounded-lg px-4 py-2 focus:border-blue-500 focus:outline-none transition;
+}
+
+.table-header {
+  @apply bg-slate-700 border-b border-slate-600;
+}
+
+.table-row {
+  @apply border-b border-slate-700 hover:bg-slate-700/50 transition;
+}
+
+/* Gradient Text */
+.gradient-text {
+  @apply bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent font-bold;
+}
+
+/* Navigation */
+.nav-item {
+  @apply px-4 py-2 rounded-lg font-bold transition hover:bg-slate-700;
+}
+
+.nav-item.active {
+  @apply bg-blue-600 text-white;
+}
