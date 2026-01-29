@@ -50,7 +50,7 @@ class MetaEntity(BaseModel):
     sort_order = Column(Integer, default=0)
     
     # İlişkiler
-    attributes = relationship("MetaAttribute", back_populates="entity", cascade="all, delete-orphan")
+    attributes = relationship("MetaAttribute", foreign_keys="[MetaAttribute.entity_id]", back_populates="entity", cascade="all, delete-orphan")
     translations = relationship("MetaTranslation", back_populates="entity", cascade="all, delete-orphan")
     master_data = relationship("MasterData", back_populates="entity", cascade="all, delete-orphan")
     

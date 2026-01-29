@@ -5,7 +5,7 @@ Kullanım: python -m app.scripts.seed_dim_time
 
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
-from app.db.session import SessionLocal
+from app.db.session import get_session_local
 from app.models.dynamic.dim_time import DimTime
 
 TURKISH_MONTHS = {
@@ -36,13 +36,13 @@ TURKISH_DAYS = {
 
 def seed_dim_time(start_year: int = 2020, end_year: int = 2035):
     """Tarih boyutunu doldur"""
+    SessionLocal = get_session_local()
     db: Session = SessionLocal()
     
     try:
-        # Mevcut kayıtları kontrol et
         existing = db.query(DimTime).count()
         if existing > 0:
-            print(f"⚠️  dim_time tablosunda {existing} kayıt var. Atlanıyor...")
+            print(f"dim_time tablosunda {existing} kayit var. Atlaniyor...")
             return
         
         start_date = date(start_year, 1, 1)
@@ -55,7 +55,6 @@ def seed_dim_time(start_year: int = 2020, end_year: int = 2035):
             month_name, month_short = TURKISH_MONTHS[current.month]
             day_name = TURKISH_DAYS[current.weekday()]
             
-            # Ay/Çeyrek/Yıl sonu kontrolleri
             next_day = current + timedelta(days=1)
             is_month_end = next_day.month != current.month
             is_quarter_end = is_month_end and current.month in [3, 6, 9, 12]
@@ -71,7 +70,7 @@ def seed_dim_time(start_year: int = 2020, end_year: int = 2035):
                 month_name_short=month_short,
                 week=current.isocalendar()[1],
                 day=current.day,
-                day_of_week=current.weekday() + 1,  # 1-7 (Pazartesi=1)
+                day_of_week=current.weekday() + 1,
                 day_name=day_name,
                 day_of_year=current.timetuple().tm_yday,
                 is_weekend=current.weekday() >= 5,
@@ -85,15 +84,14 @@ def seed_dim_time(start_year: int = 2020, end_year: int = 2035):
             records.append(record)
             current += timedelta(days=1)
         
-        # Toplu ekleme
         db.bulk_save_objects(records)
         db.commit()
         
-        print(f"✅ {len(records)} tarih kaydı eklendi ({start_year}-{end_year})")
+        print(f"{len(records)} tarih kaydi eklendi ({start_year}-{end_year})")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ Hata: {e}")
+        print(f"Hata: {e}")
         raise
     finally:
         db.close()
