@@ -9,6 +9,7 @@ import {
   Settings,
   Bell,
   Menu,
+  Database,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -68,10 +69,16 @@ function Sidebar() {
       description: 'Bütçe özeti',
     },
     {
-      label: 'Veri Yönetimi',
+      label: 'Anaveri Yönetimi',
+      path: '/meta-entities',
+      icon: Database,
+      description: 'Dinamik anaveri tipleri',
+    },
+    {
+      label: 'Veri Girişi',
       path: '/data-entry',
       icon: FileText,
-      description: 'Şirket, ürün, müşteri',
+      description: 'Bütçe veri girişi',
     },
     {
       label: 'Analytics',
@@ -81,7 +88,7 @@ function Sidebar() {
     },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
     <aside
@@ -230,14 +237,22 @@ function Header() {
 
   const pageData: { [key: string]: { title: string; description: string } } = {
     '/dashboard': { title: 'Dashboard', description: 'Bütçe özeti ve raporlar' },
-    '/data-entry': { title: 'Veri Yönetimi', description: 'Şirket, ürün, müşteri yönetimi' },
+    '/meta-entities': { title: 'Anaveri Yönetimi', description: 'Dinamik anaveri tiplerini yönetin' },
+    '/data-entry': { title: 'Veri Girişi', description: 'Bütçe veri girişi' },
     '/analytics': { title: 'Analytics', description: 'Detaylı analiz ve grafikler' },
   };
 
-  const current = pageData[location.pathname] || {
-    title: 'Dashboard',
-    description: 'Veri yönetim sistemi',
-  };
+  // Check for dynamic routes
+  let current = pageData[location.pathname];
+  if (!current) {
+    if (location.pathname.startsWith('/master-data/')) {
+      current = { title: 'Anaveri Kayıtları', description: 'Kayıt yönetimi' };
+    } else if (location.pathname.includes('/edit')) {
+      current = { title: 'Alan Yönetimi', description: 'Anaveri alanlarını düzenle' };
+    } else {
+      current = { title: 'Dashboard', description: 'Veri yönetim sistemi' };
+    }
+  }
 
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">

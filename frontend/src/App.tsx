@@ -6,6 +6,11 @@ import { DataEntryPage } from './pages/DataEntryPage';
 import { AnalyticsDashboard } from './pages/AnalyticsDashboard';
 import { LayoutProvider } from './components/LayoutProvider';
 
+// Dynamic Master Data Pages
+import { MetaEntitiesPage } from './pages/MetaEntitiesPage';
+import { MasterDataPage } from './pages/MasterDataPage';
+import { EntityEditPage } from './pages/EntityEditPage';
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token);
   return token ? (
@@ -44,6 +49,34 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AnalyticsDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Dynamic Master Data Routes */}
+        <Route
+          path="/meta-entities"
+          element={
+            <ProtectedRoute>
+              <MetaEntitiesPage />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/meta-entities/:entityId/edit"
+          element={
+            <ProtectedRoute>
+              <EntityEditPage />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/master-data/:entityId"
+          element={
+            <ProtectedRoute>
+              <MasterDataPage />
             </ProtectedRoute>
           }
         />
