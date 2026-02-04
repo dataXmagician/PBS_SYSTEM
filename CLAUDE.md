@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/claude-code) when working 
 
 PBS System (Budget System) is a corporate budget planning and management application with SAP integration capabilities. It features a FastAPI backend with PostgreSQL database and a React TypeScript frontend.
 
+## Project Location
+
+**Single project directory**: `C:\Users\Egemen\Desktop\budget-system`
+
+All development work should be done in this directory. Virtual environment is included in the same directory.
+
 ## Tech Stack
 
 ### Backend
@@ -32,36 +38,37 @@ PBS System (Budget System) is a corporate budget planning and management applica
 
 ### Backend
 ```bash
-# Start development server (use venv from Desktop)
-cd C:\Users\Egemen\.claude-worktrees\budget-system\zen-davinci
-C:\Users\Egemen\Desktop\budget-system\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Start development server
+cd C:\Users\Egemen\Desktop\budget-system
+.\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run database migrations
-alembic upgrade head
+.\venv\Scripts\python.exe -m alembic upgrade head
 
 # Create new migration
-alembic revision --autogenerate -m "description"
+.\venv\Scripts\python.exe -m alembic revision --autogenerate -m "description"
 
 # Run tests
-pytest
+.\venv\Scripts\python.exe -m pytest
 
 # Code formatting
-black app/
-isort app/
-flake8 app/
+.\venv\Scripts\python.exe -m black app/
+.\venv\Scripts\python.exe -m isort app/
+.\venv\Scripts\python.exe -m flake8 app/
 ```
 
 ### Frontend
 ```bash
-cd frontend
+cd C:\Users\Egemen\Desktop\budget-system\frontend
 npm install          # Install dependencies
-npm run dev          # Start dev server (Vite)
+npm run dev          # Start dev server (Vite) - runs on http://localhost:5173
 npm run build        # Production build
 npm run lint         # ESLint check
 ```
 
-### Docker
+### Docker (for PostgreSQL & Redis)
 ```bash
+cd C:\Users\Egemen\Desktop\budget-system
 docker-compose up -d              # Start PostgreSQL, Redis, pgAdmin
 docker-compose -f docker-compose.prod.yml up -d  # Production setup
 ```
@@ -72,12 +79,14 @@ docker-compose -f docker-compose.prod.yml up -d  # Production setup
 ```
 app/
 ├── api/v1/           # API route handlers
+│   ├── audit_logs.py # Audit log endpoints
 │   └── dynamic/      # Dynamic master data endpoints
 │       ├── meta_entities.py    # Entity type CRUD (uses joinedload for attributes)
 │       ├── meta_attributes.py  # Attribute CRUD
 │       ├── master_data.py      # Master data CRUD + CSV import/export
 │       └── fact_data.py        # Fact data operations
 ├── models/           # SQLAlchemy ORM models
+│   ├── audit_log.py  # Audit log model
 │   └── dynamic/      # Dynamic entity models
 │       ├── meta_entity.py      # Entity type definitions
 │       ├── meta_attribute.py   # Attribute definitions (uses PostgreSQL enum)
@@ -86,7 +95,9 @@ app/
 ├── schemas/          # Pydantic request/response schemas
 │   └── dynamic/      # Dynamic entity schemas
 ├── services/         # Business logic layer
+│   └── audit_log_service.py
 ├── repositories/     # Data access layer
+│   └── audit_log_repository.py
 ├── scripts/          # Utility scripts (e.g., seed_dim_time.py)
 └── utils/            # Helper utilities
 ```
@@ -103,7 +114,8 @@ frontend/src/
 │   ├── MetaEntitiesPage.tsx   # Entity type management (2-step wizard)
 │   ├── MasterDataPage.tsx     # Master data CRUD + CSV import/export modals
 │   ├── EntityEditPage.tsx     # Attribute management
-│   └── AnalyticsDashboard.tsx # Analytics with charts (meta-entities data)
+│   ├── AnalyticsDashboard.tsx # Analytics with charts (meta-entities data)
+│   └── AuditLogsPage.tsx      # Audit log viewer
 ├── services/         # API service functions
 │   └── masterDataApi.ts       # Master data API client (includes CSV endpoints)
 └── stores/           # Zustand state stores
@@ -196,22 +208,10 @@ Backend environment configured in `.env`:
 
 ## Development Notes
 
-### Git Worktree
-This project uses git worktrees. The main worktree is at:
-- `C:\Users\Egemen\.claude-worktrees\budget-system\zen-davinci`
-
-Always run backend and frontend from the worktree directory, not from `C:\Users\Egemen\Desktop\budget-system`.
-
-### Python Virtual Environment
-The venv is located at `C:\Users\Egemen\Desktop\budget-system\venv`. Use this path when running Python commands:
-```bash
-C:\Users\Egemen\Desktop\budget-system\venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
 ### Vite Cache Issues
 If frontend shows stale code after changes:
 ```powershell
-cd frontend
+cd C:\Users\Egemen\Desktop\budget-system\frontend
 Remove-Item -Recurse -Force node_modules\.vite -ErrorAction SilentlyContinue
 npm run dev
 ```
@@ -224,21 +224,3 @@ Due to Vite HMR issues, TypeScript interfaces are defined locally in each page c
 - Comments and some UI text are in Turkish (Kurumsal Butce Sistemi = Corporate Budget System)
 - The application is designed for enterprise budget planning workflows
 - SAP integration is planned (sap_connector.py exists but may be placeholder)
-
-## Recent Changes
-
-### CSV Import/Export (master_data.py)
-- Added `GET /export/{entity_id}/csv` for downloading master data as CSV
-- Added `POST /import/{entity_id}/csv` for uploading CSV files
-- CSV uses semicolon delimiter and UTF-8 BOM for Excel compatibility
-- Frontend has ImportModal with drag-and-drop file upload
-
-### Entity Attributes Loading Fix (meta_entities.py)
-- Added `joinedload(MetaEntity.attributes)` to ensure custom attributes are loaded
-- Fixed issue where custom attributes (e.g., ULKE, REGION) were not showing in forms
-- Updated MetaAttributeInEntity schema to include all necessary fields (is_active, options, reference_entity_id, etc.)
-
-### DataEntryPage Removed
-- Removed `/data-entry` route and `DataEntryPage.tsx` - all data entry is now via meta-entities
-- Updated `LayoutProvider.tsx` sidebar to remove "Veri Girişi" menu item
-- Dashboard and Analytics pages refactored to use meta-entities API
