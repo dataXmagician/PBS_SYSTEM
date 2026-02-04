@@ -67,3 +67,21 @@ body {
 .nav-item.active {
   @apply bg-blue-600 text-white;
 }
+
+/* Modal ve Form Stilleri */
+.modal-content {
+  @apply bg-white text-gray-900;
+}
+
+/* Beyaz arka planlı modal içindeki form elementleri */
+.bg-white input,
+.bg-white select,
+.bg-white textarea,
+.bg-white button {
+  color: inherit;
+}
+
+.bg-white input::placeholder,
+.bg-white textarea::placeholder {
+  @apply text-gray-400;
+}

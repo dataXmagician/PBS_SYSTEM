@@ -10,7 +10,7 @@ import logging
 from app.config import settings
 from app.api.v1 import rules
 # API Routes
-from app.api.v1 import companies, products, customers, periods, budgets, forecasts, reports, scenarios
+from app.api.v1 import companies, products, customers, periods, budgets, forecasts, reports, scenarios, audit_logs
 from app.api import auth
 from app.api.v1 import reports
 from app.api.v1 import scenarios
@@ -58,6 +58,7 @@ app.include_router(forecasts.router, prefix="/api/v1")
 app.include_router(reports.router, prefix="/api/v1")
 app.include_router(scenarios.router, prefix="/api/v1")
 app.include_router(rules.router, prefix="/api/v1")
+app.include_router(audit_logs.router, prefix="/api/v1")
 
 # Dynamic Master Data Routes
 app.include_router(meta_entities_router, prefix="/api/v1")

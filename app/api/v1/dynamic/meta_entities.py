@@ -3,7 +3,7 @@ Meta Entities API - Anaveri Tipi Yönetimi
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
 
@@ -33,29 +33,38 @@ async def list_meta_entities(
     current_user: User = Depends(get_current_user)
 ):
     """Tüm anaveri tiplerini listele"""
-    query = db.query(MetaEntity)
-    
+    query = db.query(MetaEntity).options(joinedload(MetaEntity.attributes))
+
     if search:
         query = query.filter(
             (MetaEntity.code.ilike(f"%{search}%")) |
             (MetaEntity.default_name.ilike(f"%{search}%"))
         )
-    
+
     if is_active is not None:
         query = query.filter(MetaEntity.is_active == is_active)
-    
-    total = query.count()
-    
+
+    # Total için ayrı query (joinedload ile count yapılmaz)
+    count_query = db.query(func.count(MetaEntity.id))
+    if search:
+        count_query = count_query.filter(
+            (MetaEntity.code.ilike(f"%{search}%")) |
+            (MetaEntity.default_name.ilike(f"%{search}%"))
+        )
+    if is_active is not None:
+        count_query = count_query.filter(MetaEntity.is_active == is_active)
+    total = count_query.scalar()
+
     items = query.order_by(MetaEntity.sort_order, MetaEntity.code)\
         .offset((page - 1) * page_size)\
         .limit(page_size)\
         .all()
-    
+
     # Her entity için kayıt sayısını ekle
     for item in items:
         item.record_count = db.query(func.count(MasterData.id))\
             .filter(MasterData.entity_id == item.id).scalar()
-    
+
     return MetaEntityListResponse(
         items=items,
         total=total,
@@ -72,13 +81,16 @@ async def get_meta_entity(
     current_user: User = Depends(get_current_user)
 ):
     """Anaveri tipi detayı"""
-    entity = db.query(MetaEntity).filter(MetaEntity.id == entity_id).first()
+    entity = db.query(MetaEntity)\
+        .options(joinedload(MetaEntity.attributes))\
+        .filter(MetaEntity.id == entity_id)\
+        .first()
     if not entity:
         raise HTTPException(status_code=404, detail="Anaveri tipi bulunamadı")
-    
+
     entity.record_count = db.query(func.count(MasterData.id))\
         .filter(MasterData.entity_id == entity.id).scalar()
-    
+
     return entity
 
 
@@ -136,10 +148,10 @@ async def create_meta_entity(
         sort_order=0,
         max_length=50
     )
-    
+
     name_attr = MetaAttribute(
         entity_id=entity.id,
-        code="NAME", 
+        code="NAME",
         default_label="Ad",
         data_type="string",
         is_required=True,

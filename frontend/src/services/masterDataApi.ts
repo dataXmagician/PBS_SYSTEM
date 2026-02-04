@@ -107,7 +107,8 @@ export const metaAttributesApi = {
   }) => api.post<MetaAttribute>('/meta-attributes', data),
   update: (id: number, data: Partial<MetaAttribute>) =>
     api.put<MetaAttribute>(`/meta-attributes/${id}`, data),
-  delete: (id: number) => api.delete(`/meta-attributes/${id}`),
+  delete: (id: number, force: boolean = false) =>
+    api.delete(`/meta-attributes/${id}`, { params: { force } }),
 };
 
 export const masterDataApi = {
@@ -132,6 +133,17 @@ export const masterDataApi = {
     values?: { attribute_id: number; value: any }[];
   }) => api.put<MasterData>(`/master-data/${id}`, data),
   delete: (id: number) => api.delete(`/master-data/${id}`),
+  exportCsv: (entityId: number) =>
+    api.get(`/master-data/export/${entityId}/csv`, { responseType: 'blob' }),
+  importCsv: (entityId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<{ created: number; updated: number; errors: string[]; total_processed: number }>(
+      `/master-data/import/${entityId}/csv`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+  },
 };
 
 export default api;

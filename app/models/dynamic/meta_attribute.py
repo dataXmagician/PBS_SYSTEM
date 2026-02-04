@@ -28,7 +28,15 @@ class MetaAttribute(BaseModel):
     entity_id = Column(Integer, ForeignKey("meta_entities.id", ondelete="CASCADE"), nullable=False)
     code = Column(String(50), nullable=False, index=True)
     default_label = Column(String(100), nullable=False)
-    data_type = Column(Enum(AttributeType), nullable=False, default=AttributeType.STRING)
+    data_type = Column(
+        Enum(
+            'string', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'list', 'reference',
+            name='attributetype',
+            create_type=False
+        ),
+        nullable=False,
+        default='string'
+    )
     options = Column(Text, nullable=True)
     reference_entity_id = Column(Integer, ForeignKey("meta_entities.id"), nullable=True)
     default_value = Column(String(255), nullable=True)

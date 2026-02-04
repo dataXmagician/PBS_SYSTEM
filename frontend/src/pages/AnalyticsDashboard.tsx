@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -18,22 +17,35 @@ import {
 } from 'recharts';
 import {
   TrendingUp,
-  Users,
-  Package,
-  Building2,
+  Database,
   Activity,
   Calendar,
   Download,
   Filter,
-  Settings,
+  ArrowUpRight,
+  ArrowDownRight,
+  Layers,
 } from 'lucide-react';
-import { masterAPI } from '../api/client';
+import { metaEntitiesApi } from '../services/masterDataApi';
+
+interface MetaEntity {
+  id: number;
+  uuid: string;
+  code: string;
+  default_name: string;
+  description?: string;
+  icon: string;
+  color: string;
+  is_active: boolean;
+  record_count: number;
+  attributes?: any[];
+}
+
+const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
 export function AnalyticsDashboard() {
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [timeRange, setTimeRange] = useState('month');
+  const navigate = useNavigate();
+  const [entities, setEntities] = useState<MetaEntity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,15 +55,8 @@ export function AnalyticsDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [companiesRes, productsRes, customersRes] = await Promise.all([
-        masterAPI.getCompanies(),
-        masterAPI.getProducts(),
-        masterAPI.getCustomers(),
-      ]);
-
-      setCompanies(companiesRes.data.data || []);
-      setProducts(productsRes.data.data || []);
-      setCustomers(customersRes.data.data || []);
+      const response = await metaEntitiesApi.list();
+      setEntities(response.data.items || []);
     } catch (err) {
       console.error('Veri yüklenemedi', err);
     } finally {
@@ -59,61 +64,78 @@ export function AnalyticsDashboard() {
     }
   };
 
-  // Mock data for charts
-  const chartData = [
-    { name: 'Pazartesi', şirketler: 40, ürünler: 24, müşteriler: 24 },
-    { name: 'Salı', şirketler: 30, ürünler: 13, müşteriler: 22 },
-    { name: 'Çarşamba', şirketler: 20, ürünler: 98, müşteriler: 29 },
-    { name: 'Perşembe', şirketler: 27, ürünler: 39, müşteriler: 20 },
-    { name: 'Cuma', şirketler: 18, ürünler: 48, müşteriler: 21 },
-    { name: 'Cumartesi', şirketler: 23, ürünler: 38, müşteriler: 25 },
-    { name: 'Pazar', şirketler: 34, ürünler: 43, müşteriler: 21 },
-  ];
+  // Calculate stats
+  const totalRecords = entities.reduce((sum, e) => sum + (e.record_count || 0), 0);
+  const totalEntities = entities.length;
+  const activeEntities = entities.filter((e) => e.is_active).length;
+  const totalAttributes = entities.reduce((sum, e) => sum + (e.attributes?.length || 0), 0);
 
-  const pieData = [
-    { name: 'Şirketler', value: companies.length },
-    { name: 'Ürünler', value: products.length },
-    { name: 'Müşteriler', value: customers.length },
-  ];
+  // Pie data for entity distribution
+  const pieData = entities
+    .filter((e) => e.record_count > 0)
+    .map((e) => ({
+      name: e.default_name,
+      value: e.record_count,
+    }));
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B'];
+  // Bar data for record counts
+  const barData = entities.map((e) => ({
+    name: e.code,
+    kayıt: e.record_count,
+    alan: e.attributes?.length || 0,
+  }));
+
+  // Simulated trend data (could be replaced with actual historical data)
+  const trendData = [
+    { name: 'Pzt', toplam: Math.round(totalRecords * 0.85) },
+    { name: 'Sal', toplam: Math.round(totalRecords * 0.88) },
+    { name: 'Çar', toplam: Math.round(totalRecords * 0.92) },
+    { name: 'Per', toplam: Math.round(totalRecords * 0.95) },
+    { name: 'Cum', toplam: Math.round(totalRecords * 0.98) },
+    { name: 'Cmt', toplam: Math.round(totalRecords * 0.99) },
+    { name: 'Paz', toplam: totalRecords },
+  ];
 
   const stats = [
     {
-      title: 'Toplam Şirket',
-      value: companies.length,
-      icon: Building2,
+      title: 'Toplam Kayıt',
+      value: totalRecords.toLocaleString(),
+      icon: Database,
       color: 'from-blue-600 to-blue-700',
       bgColor: 'bg-blue-50',
       iconColor: 'text-blue-600',
       change: '+12%',
+      changeType: 'up',
     },
     {
-      title: 'Toplam Ürün',
-      value: products.length,
-      icon: Package,
+      title: 'Anaveri Tipleri',
+      value: totalEntities,
+      icon: Layers,
       color: 'from-green-600 to-green-700',
       bgColor: 'bg-green-50',
       iconColor: 'text-green-600',
-      change: '+8%',
+      change: '+2',
+      changeType: 'up',
     },
     {
-      title: 'Toplam Müşteri',
-      value: customers.length,
-      icon: Users,
+      title: 'Aktif Tipler',
+      value: activeEntities,
+      icon: Activity,
       color: 'from-purple-600 to-purple-700',
       bgColor: 'bg-purple-50',
       iconColor: 'text-purple-600',
-      change: '+15%',
+      change: `${totalEntities > 0 ? ((activeEntities / totalEntities) * 100).toFixed(0) : 0}%`,
+      changeType: 'neutral',
     },
     {
-      title: 'Aktivite',
-      value: companies.length + products.length + customers.length,
-      icon: Activity,
+      title: 'Toplam Alan',
+      value: totalAttributes,
+      icon: Calendar,
       color: 'from-orange-600 to-orange-700',
       bgColor: 'bg-orange-50',
       iconColor: 'text-orange-600',
-      change: '+5%',
+      change: '+5',
+      changeType: 'up',
     },
   ];
 
@@ -128,7 +150,7 @@ export function AnalyticsDashboard() {
                 <TrendingUp className="text-blue-600" size={32} />
                 Analytics Dashboard
               </h1>
-              <p className="text-gray-500 mt-1">Veri yönetim sistemi özeti</p>
+              <p className="text-gray-500 mt-1">Anaveri sistemi özeti ve analizi</p>
             </div>
             <div className="flex gap-3">
               <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium transition">
@@ -170,7 +192,14 @@ export function AnalyticsDashboard() {
                         <div>
                           <p className="text-gray-500 text-sm font-medium">{stat.title}</p>
                           <h3 className="text-3xl font-bold text-gray-900 mt-2">{stat.value}</h3>
-                          <p className="text-green-600 text-sm font-semibold mt-2">{stat.change} hafta içinde</p>
+                          <p className={`text-sm font-semibold mt-2 flex items-center gap-1 ${
+                            stat.changeType === 'up' ? 'text-green-600' :
+                            stat.changeType === 'down' ? 'text-red-600' : 'text-gray-600'
+                          }`}>
+                            {stat.changeType === 'up' && <ArrowUpRight size={16} />}
+                            {stat.changeType === 'down' && <ArrowDownRight size={16} />}
+                            {stat.change}
+                          </p>
                         </div>
                         <div className={`p-3 rounded-lg ${stat.bgColor}`}>
                           <Icon className={stat.iconColor} size={24} />
@@ -185,22 +214,18 @@ export function AnalyticsDashboard() {
 
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-              {/* Main Chart */}
+              {/* Main Chart - Trend */}
               <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="mb-6">
-                  <h2 className="text-lg font-bold text-gray-900">Haftalık Aktivite</h2>
-                  <p className="text-gray-500 text-sm">Son 7 gün içindeki veri değişiklikleri</p>
+                  <h2 className="text-lg font-bold text-gray-900">Kayıt Trendi</h2>
+                  <p className="text-gray-500 text-sm">Haftalık kayıt değişimi</p>
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData}>
+                  <AreaChart data={trendData}>
                     <defs>
-                      <linearGradient id="colorŞirketler" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorToplam" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8} />
                         <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorÜrünler" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
@@ -213,20 +238,12 @@ export function AnalyticsDashboard() {
                         borderRadius: '8px',
                       }}
                     />
-                    <Legend />
                     <Area
                       type="monotone"
-                      dataKey="şirketler"
+                      dataKey="toplam"
                       stroke="#3B82F6"
                       fillOpacity={1}
-                      fill="url(#colorŞirketler)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="ürünler"
-                      stroke="#10B981"
-                      fillOpacity={1}
-                      fill="url(#colorÜrünler)"
+                      fill="url(#colorToplam)"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -236,46 +253,54 @@ export function AnalyticsDashboard() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="mb-6">
                   <h2 className="text-lg font-bold text-gray-900">Dağılım</h2>
-                  <p className="text-gray-500 text-sm">Veri tiplerinin oranı</p>
+                  <p className="text-gray-500 text-sm">Tip başına kayıt oranı</p>
                 </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={100}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {pieData.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {pieData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#F9FAFB',
+                            border: '1px solid #E5E7EB',
+                            borderRadius: '8px',
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 space-y-2">
+                      {pieData.slice(0, 4).map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: COLORS[idx] }}
+                            ></div>
+                            <span className="text-sm text-gray-600">{item.name}</span>
+                          </div>
+                          <span className="font-semibold text-gray-900">{item.value}</span>
+                        </div>
                       ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#F9FAFB',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '8px',
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="mt-6 space-y-2">
-                  {pieData.map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: COLORS[idx] }}
-                        ></div>
-                        <span className="text-sm text-gray-600">{item.name}</span>
-                      </div>
-                      <span className="font-semibold text-gray-900">{item.value}</span>
                     </div>
-                  ))}
-                </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-[200px] text-gray-400">
+                    Henüz veri yok
+                  </div>
+                )}
               </div>
             </div>
 
@@ -284,74 +309,91 @@ export function AnalyticsDashboard() {
               {/* Bar Chart */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="mb-6">
-                  <h2 className="text-lg font-bold text-gray-900">Günlük Karşılaştırma</h2>
-                  <p className="text-gray-500 text-sm">Her kategori için günlük veriler</p>
+                  <h2 className="text-lg font-bold text-gray-900">Kayıt ve Alan Karşılaştırması</h2>
+                  <p className="text-gray-500 text-sm">Her tip için kayıt ve alan sayısı</p>
                 </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                    <XAxis dataKey="name" stroke="#6B7280" />
-                    <YAxis stroke="#6B7280" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#F9FAFB',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend />
-                    <Bar dataKey="şirketler" fill="#3B82F6" radius={[8, 8, 0, 0]} />
-                    <Bar dataKey="ürünler" fill="#10B981" radius={[8, 8, 0, 0]} />
-                    <Bar dataKey="müşteriler" fill="#F59E0B" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                {barData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={barData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis dataKey="name" stroke="#6B7280" />
+                      <YAxis stroke="#6B7280" />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: '#F9FAFB',
+                          border: '1px solid #E5E7EB',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="kayıt" fill="#3B82F6" radius={[8, 8, 0, 0]} name="Kayıt Sayısı" />
+                      <Bar dataKey="alan" fill="#10B981" radius={[8, 8, 0, 0]} name="Alan Sayısı" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-gray-400">
+                    Henüz veri yok
+                  </div>
+                )}
               </div>
 
-              {/* Line Chart */}
+              {/* Entity Table */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="mb-6">
-                  <h2 className="text-lg font-bold text-gray-900">Trend Analizi</h2>
-                  <p className="text-gray-500 text-sm">Haftalık eğilim grafiği</p>
+                  <h2 className="text-lg font-bold text-gray-900">Anaveri Tipleri Detay</h2>
+                  <p className="text-gray-500 text-sm">Tüm tipler ve kayıt sayıları</p>
                 </div>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                    <XAxis dataKey="name" stroke="#6B7280" />
-                    <YAxis stroke="#6B7280" />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: '#F9FAFB',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: '8px',
-                      }}
-                    />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="şirketler"
-                      stroke="#3B82F6"
-                      strokeWidth={2}
-                      dot={{ fill: '#3B82F6', r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="ürünler"
-                      stroke="#10B981"
-                      strokeWidth={2}
-                      dot={{ fill: '#10B981', r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="müşteriler"
-                      stroke="#F59E0B"
-                      strokeWidth={2}
-                      dot={{ fill: '#F59E0B', r: 4 }}
-                      activeDot={{ r: 6 }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {entities.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Tip</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">Kayıt</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">Alan</th>
+                          <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">Durum</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {entities.map((entity) => (
+                          <tr
+                            key={entity.id}
+                            className="hover:bg-gray-50 cursor-pointer transition"
+                            onClick={() => navigate(`/master-data/${entity.id}`)}
+                          >
+                            <td className="px-4 py-3">
+                              <div>
+                                <p className="font-medium text-gray-900">{entity.default_name}</p>
+                                <p className="text-xs text-gray-500">{entity.code}</p>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold text-blue-600">
+                              {entity.record_count}
+                            </td>
+                            <td className="px-4 py-3 text-right text-gray-600">
+                              {entity.attributes?.length || 0}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span
+                                className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  entity.is_active
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {entity.is_active ? 'Aktif' : 'Pasif'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-gray-400">
+                    Henüz anaveri tipi yok
+                  </div>
+                )}
               </div>
             </div>
           </>

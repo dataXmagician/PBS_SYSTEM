@@ -39,9 +39,15 @@ class MetaAttributeInEntity(BaseModel):
     default_label: str
     data_type: str
     is_required: bool
+    is_unique: bool = False
     is_code_field: bool
     is_name_field: bool
+    is_active: bool = True
+    is_system: bool = False
     sort_order: int
+    options: Optional[List[str]] = None
+    reference_entity_id: Optional[int] = None
+    default_value: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.dynamic.meta_entity import MetaEntity
-from app.models.dynamic.meta_attribute import MetaAttribute, AttributeType
+from app.models.dynamic.meta_attribute import MetaAttribute
 from app.models.dynamic.master_data_value import MasterDataValue
 from app.schemas.dynamic.meta_attribute import (
     MetaAttributeCreate,
@@ -107,7 +107,8 @@ async def create_attribute(
         raise HTTPException(status_code=400, detail=f"'{data.code}' kodu bu anaveri tipinde zaten var")
     
     # Reference entity kontrolü
-    if data.data_type.value == "reference" and data.reference_entity_id:
+    data_type_value = data.data_type.value if hasattr(data.data_type, 'value') else data.data_type
+    if data_type_value == "reference" and data.reference_entity_id:
         ref_entity = db.query(MetaEntity).filter(MetaEntity.id == data.reference_entity_id).first()
         if not ref_entity:
             raise HTTPException(status_code=400, detail="Referans anaveri tipi bulunamadı")
@@ -116,7 +117,7 @@ async def create_attribute(
         entity_id=data.entity_id,
         code=data.code.upper(),
         default_label=data.default_label,
-        data_type=AttributeType(data.data_type.value),
+        data_type=data_type_value,  # lowercase string: "string", "integer", etc.
         options=json.dumps(data.options) if data.options else None,
         reference_entity_id=data.reference_entity_id,
         default_value=data.default_value,
@@ -161,12 +162,15 @@ async def create_attributes_bulk(
         ).first()
         if existing:
             continue  # Atla, hata verme
-        
+
+        # data_type değerini al
+        attr_data_type = attr_data.data_type.value if hasattr(attr_data.data_type, 'value') else attr_data.data_type
+
         attr = MetaAttribute(
             entity_id=data.entity_id,
             code=attr_data.code.upper(),
             default_label=attr_data.default_label,
-            data_type=AttributeType(attr_data.data_type.value),
+            data_type=attr_data_type,  # lowercase string: "string", "integer", etc.
             options=json.dumps(attr_data.options) if attr_data.options else None,
             reference_entity_id=attr_data.reference_entity_id,
             default_value=attr_data.default_value,
@@ -233,25 +237,30 @@ async def update_attribute(
 @router.delete("/{attribute_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_attribute(
     attribute_id: int,
+    force: bool = Query(False, description="True ise değerler de silinir"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Alan sil"""
+    """Alan sil. force=true ile değerler de silinir."""
     attr = db.query(MetaAttribute).filter(MetaAttribute.id == attribute_id).first()
     if not attr:
         raise HTTPException(status_code=404, detail="Alan bulunamadı")
-    
+
     if attr.is_system:
         raise HTTPException(status_code=400, detail="Sistem alanları silinemez")
-    
+
     # Değer var mı kontrol et
     value_count = db.query(MasterDataValue).filter(MasterDataValue.attribute_id == attr.id).count()
+
     if value_count > 0:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Bu alanda {value_count} değer var. Önce değerleri silin veya alanı pasif yapın."
-        )
-    
+        if not force:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Bu alanda {value_count} değer var. Silmek için 'force' parametresini kullanın."
+            )
+        # Force delete - önce değerleri sil
+        db.query(MasterDataValue).filter(MasterDataValue.attribute_id == attr.id).delete()
+
     db.delete(attr)
     db.commit()
     return None

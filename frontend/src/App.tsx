@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { LoginForm } from './components/LoginForm';
 import { Dashboard } from './components/Dashboard';
-import { DataEntryPage } from './pages/DataEntryPage';
 import { AnalyticsDashboard } from './pages/AnalyticsDashboard';
 import { LayoutProvider } from './components/LayoutProvider';
 
@@ -10,6 +9,7 @@ import { LayoutProvider } from './components/LayoutProvider';
 import { MetaEntitiesPage } from './pages/MetaEntitiesPage';
 import { MasterDataPage } from './pages/MasterDataPage';
 import { EntityEditPage } from './pages/EntityEditPage';
+import { AuditLogsPage } from './pages/AuditLogsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token);
@@ -25,7 +25,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginForm />} />
-        
+
         <Route
           path="/dashboard"
           element={
@@ -34,16 +34,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        
-        <Route
-          path="/data-entry"
-          element={
-            <ProtectedRoute>
-              <DataEntryPage />
-            </ProtectedRoute>
-          }
-        />
-        
+
         <Route
           path="/analytics"
           element={
@@ -62,7 +53,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        
+
         <Route
           path="/meta-entities/:entityId/edit"
           element={
@@ -71,7 +62,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        
+
         <Route
           path="/master-data/:entityId"
           element={
@@ -80,7 +71,16 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        
+
+        <Route
+          path="/audit-logs"
+          element={
+            <ProtectedRoute>
+              <AuditLogsPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/" element={<Navigate to="/dashboard" />} />
       </Routes>
     </BrowserRouter>

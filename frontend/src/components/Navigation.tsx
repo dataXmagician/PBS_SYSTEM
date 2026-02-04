@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  FileText,
+  Database,
   TrendingUp,
   LogOut,
   Menu,
@@ -23,13 +23,13 @@ export function Navigation() {
       label: 'Dashboard',
       path: '/dashboard',
       icon: LayoutDashboard,
-      description: 'Bütçe özeti ve raporlar',
+      description: 'Özet ve istatistikler',
     },
     {
       label: 'Veri Yönetimi',
-      path: '/data-entry',
-      icon: FileText,
-      description: 'Şirket, ürün, müşteri yönetimi',
+      path: '/meta-entities',
+      icon: Database,
+      description: 'Anaveri tipleri ve kayıtlar',
     },
     {
       label: 'Analytics',

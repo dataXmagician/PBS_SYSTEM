@@ -2,11 +2,14 @@
 Master Data API - Anaveri Kayıt Yönetimi
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional, Dict, Any
 import json
+import csv
+import io
 
 from app.db.session import get_db
 from app.dependencies import get_current_user
@@ -30,12 +33,20 @@ router = APIRouter(prefix="/master-data", tags=["Master Data - Anaveri Kayıtlar
 def get_flat_values(db: Session, master_data: MasterData) -> Dict[str, Any]:
     """Alan değerlerini flat dict olarak döndür"""
     flat = {"CODE": master_data.code, "NAME": master_data.name}
-    
+
     for val in master_data.values:
         attr = db.query(MetaAttribute).filter(MetaAttribute.id == val.attribute_id).first()
         if attr:
-            flat[attr.code] = val.value
-    
+            # Reference tipinde reference_display kullan
+            if val.reference_id:
+                ref_record = db.query(MasterData).filter(MasterData.id == val.reference_id).first()
+                if ref_record:
+                    flat[attr.code] = f"{ref_record.code} - {ref_record.name}"
+                else:
+                    flat[attr.code] = val.value
+            else:
+                flat[attr.code] = val.value
+
     return flat
 
 
@@ -52,7 +63,7 @@ def enrich_response(db: Session, record: MasterData) -> MasterData:
         if attr:
             val.attribute_code = attr.code
             val.attribute_label = attr.default_label
-            val.data_type = attr.data_type.value
+            val.data_type = attr.data_type.value if hasattr(attr.data_type, 'value') else attr.data_type
             
             # Reference display
             if val.reference_id:
@@ -66,6 +77,200 @@ def enrich_response(db: Session, record: MasterData) -> MasterData:
     record.flat_values = get_flat_values(db, record)
     
     return record
+
+
+# CSV Export/Import
+@router.get("/export/{entity_id}/csv")
+async def export_master_data_csv(
+    entity_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Anaveri kayıtlarını CSV olarak dışa aktar"""
+    entity = db.query(MetaEntity).filter(MetaEntity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Anaveri tipi bulunamadı")
+
+    # Attribute'ları al (aktif olanlar)
+    attributes = db.query(MetaAttribute).filter(
+        MetaAttribute.entity_id == entity_id,
+        MetaAttribute.is_active == True,
+        MetaAttribute.is_code_field == False,
+        MetaAttribute.is_name_field == False
+    ).order_by(MetaAttribute.sort_order).all()
+
+    # Kayıtları al
+    records = db.query(MasterData).options(joinedload(MasterData.values))\
+        .filter(MasterData.entity_id == entity_id)\
+        .order_by(MasterData.sort_order, MasterData.code)\
+        .all()
+
+    # CSV oluştur
+    output = io.StringIO()
+
+    # Header satırı
+    headers = ["CODE", "NAME"] + [attr.code for attr in attributes]
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(headers)
+
+    # Veri satırları
+    for record in records:
+        # Değerleri dict'e çevir
+        values_dict = {}
+        for val in record.values:
+            attr = next((a for a in attributes if a.id == val.attribute_id), None)
+            if attr:
+                values_dict[attr.code] = val.value or ""
+
+        # Satırı oluştur
+        row = [record.code, record.name]
+        for attr in attributes:
+            row.append(values_dict.get(attr.code, ""))
+
+        writer.writerow(row)
+
+    # Response oluştur
+    output.seek(0)
+
+    # UTF-8 BOM ekle (Excel'de Türkçe karakter sorunu için)
+    content = '\ufeff' + output.getvalue()
+
+    return StreamingResponse(
+        io.BytesIO(content.encode('utf-8')),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename={entity.code}_export.csv"
+        }
+    )
+
+
+@router.post("/import/{entity_id}/csv", response_model=Dict[str, Any])
+async def import_master_data_csv(
+    entity_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """CSV dosyasından anaveri kayıtlarını içe aktar"""
+    entity = db.query(MetaEntity).filter(MetaEntity.id == entity_id).first()
+    if not entity:
+        raise HTTPException(status_code=404, detail="Anaveri tipi bulunamadı")
+
+    # Dosya tipini kontrol et
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Sadece CSV dosyaları kabul edilir")
+
+    # Dosyayı oku
+    content = await file.read()
+
+    # UTF-8 BOM varsa kaldır
+    if content.startswith(b'\xef\xbb\xbf'):
+        content = content[3:]
+
+    try:
+        text = content.decode('utf-8')
+    except UnicodeDecodeError:
+        try:
+            text = content.decode('latin-1')
+        except:
+            raise HTTPException(status_code=400, detail="Dosya kodlaması okunamadı")
+
+    # CSV'yi parse et (hem ; hem , delimiter'ını dene)
+    reader = None
+    for delimiter in [';', ',', '\t']:
+        try:
+            test_reader = csv.reader(io.StringIO(text), delimiter=delimiter)
+            first_row = next(test_reader)
+            if len(first_row) >= 2:  # En az CODE ve NAME olmalı
+                reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+                break
+        except:
+            continue
+
+    if reader is None:
+        raise HTTPException(status_code=400, detail="CSV formatı okunamadı")
+
+    # Attribute'ları al
+    attributes = db.query(MetaAttribute).filter(
+        MetaAttribute.entity_id == entity_id,
+        MetaAttribute.is_active == True
+    ).all()
+
+    attr_map = {attr.code: attr for attr in attributes}
+
+    created = 0
+    updated = 0
+    errors = []
+
+    for idx, row in enumerate(reader):
+        try:
+            code = str(row.get("CODE", "")).strip().upper()
+            name = str(row.get("NAME", "")).strip()
+
+            if not code or not name:
+                errors.append(f"Satır {idx + 2}: CODE ve NAME zorunlu")
+                continue
+
+            # Mevcut kayıt var mı?
+            existing = db.query(MasterData).filter(
+                MasterData.entity_id == entity_id,
+                MasterData.code == code
+            ).first()
+
+            if existing:
+                # Güncelle
+                existing.name = name
+                record = existing
+                updated += 1
+            else:
+                # Yeni oluştur
+                record = MasterData(
+                    entity_id=entity_id,
+                    code=code,
+                    name=name
+                )
+                db.add(record)
+                db.flush()
+                created += 1
+
+            # Değerleri işle
+            for attr_code, value in row.items():
+                if attr_code in ["CODE", "NAME"]:
+                    continue
+
+                attr = attr_map.get(attr_code)
+                if not attr or attr.is_code_field or attr.is_name_field:
+                    continue
+
+                # Mevcut değer var mı?
+                existing_val = db.query(MasterDataValue).filter(
+                    MasterDataValue.master_data_id == record.id,
+                    MasterDataValue.attribute_id == attr.id
+                ).first()
+
+                clean_value = str(value).strip() if value else None
+
+                if existing_val:
+                    existing_val.value = clean_value
+                else:
+                    new_val = MasterDataValue(
+                        master_data_id=record.id,
+                        attribute_id=attr.id,
+                        value=clean_value
+                    )
+                    db.add(new_val)
+
+        except Exception as e:
+            errors.append(f"Satır {idx + 2}: {str(e)}")
+
+    db.commit()
+
+    return {
+        "created": created,
+        "updated": updated,
+        "errors": errors,
+        "total_processed": created + updated + len(errors)
+    }
 
 
 @router.get("/entity/{entity_id}", response_model=MasterDataListResponse)
@@ -329,7 +534,7 @@ async def import_master_data(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Excel/CSV'den toplu import"""
+    """Excel/CSV'den toplu import (JSON formatında)"""
     entity = db.query(MetaEntity).filter(MetaEntity.id == data.entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Anaveri tipi bulunamadı")

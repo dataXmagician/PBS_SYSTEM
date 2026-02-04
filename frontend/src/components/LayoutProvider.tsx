@@ -2,7 +2,6 @@ import { useState, createContext, useContext } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  FileText,
   TrendingUp,
   LogOut,
   ChevronRight,
@@ -10,6 +9,7 @@ import {
   Bell,
   Menu,
   Database,
+  FileText,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -75,16 +75,16 @@ function Sidebar() {
       description: 'Dinamik anaveri tipleri',
     },
     {
-      label: 'Veri Girişi',
-      path: '/data-entry',
-      icon: FileText,
-      description: 'Bütçe veri girişi',
-    },
-    {
       label: 'Analytics',
       path: '/analytics',
       icon: TrendingUp,
       description: 'Grafikler ve analiz',
+    },
+    {
+      label: 'Audit Logs',
+      path: '/audit-logs',
+      icon: FileText,
+      description: 'Sistem aktivite kayıtları',
     },
   ];
 
@@ -238,8 +238,8 @@ function Header() {
   const pageData: { [key: string]: { title: string; description: string } } = {
     '/dashboard': { title: 'Dashboard', description: 'Bütçe özeti ve raporlar' },
     '/meta-entities': { title: 'Anaveri Yönetimi', description: 'Dinamik anaveri tiplerini yönetin' },
-    '/data-entry': { title: 'Veri Girişi', description: 'Bütçe veri girişi' },
     '/analytics': { title: 'Analytics', description: 'Detaylı analiz ve grafikler' },
+    '/audit-logs': { title: 'Audit Logs', description: 'Sistem aktivite kayıtları' },
   };
 
   // Check for dynamic routes
