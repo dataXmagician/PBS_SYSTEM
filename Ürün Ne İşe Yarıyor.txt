@@ -1,0 +1,63 @@
+Ürün Ne İşe Yarıyor (anladığım kadarıyla)
+PBS System, kurumsal bütçe planlama ve yönetimi için tasarlanmış, versiyon/dönem/parametre yönetimiyle çalışan, dinamik anaveri altyapısı bulunan ve Excel benzeri grid üzerinden bütçe girişi + kural bazlı hesaplamalar yapan bir uygulama.
+
+Temel akış şöyle görünüyor:
+
+Kimlik doğrulama
+Giriş yapıldıktan sonra tüm sayfalar LayoutProvider altında korunuyor.
+Sistem Verileri (Versiyon, Dönem, Parametre)
+Bütçe versiyonları, dönemler ve parametreler ayrı yönetiliyor. Versiyonlar, dönem aralıkları ve parametre değerleri bütçe hesaplarının temel bağlamı.
+Dinamik Anaveri (Meta-Entities, Attributes, Master Data)
+“Şirket, ürün, müşteri” gibi boyutlar sabit değil; meta-entity üzerinden tanımlanıyor, ardından bu boyutların master data kayıtları giriliyor. Bu sayede bütçe gridindeki boyutlar esnek.
+Bütçe Tanımları ve Grid
+Bütçe tanımı: bir versiyon + bütçe tipi + seçilen boyutlar (dimension).
+Bu tanımdan sistem master data’ların kartesyen çarpımıyla satırları üretiyor.
+Grid yapısı: satırlar = boyut kombinasyonları, sütunlar = dönemler ve ölçüler (input + calculated).
+Kural Setleri ve Hesaplama
+Rule set’ler ile hesaplama yapılabiliyor:
+Sabit değer
+Parametre çarpanı
+Formül
+Hesaplama snapshot alıyor ve geri alınabiliyor.
+Analitik ve Audit
+UI’da Analytics ve Audit Logs sayfaları bulunuyor (detaylarına girmedim, ama navigasyonda var).
+Kritik mimari çıkarım
+Bütçe girişlerinin kalbi BudgetGridPage ve budget_entries API’si. Ürün, farklı versiyonlar altında, boyutlar ve dönemler üzerinden ölçü bazlı bütçe oluşturma ve formül/kural hesaplama üzerine kurulu.
+
+Ürün İçin Öneriler
+Aşağıdaki önerileri üç seviyeye ayırdım: ürün, kullanıcı deneyimi, teknik/operasyonel.
+
+1) Ürün ve İşlev Önerileri
+
+Versiyon karşılaştırma (diff)
+İki bütçe versiyonu arasında satır/ölçü bazında fark raporu. Karar verici için kritik.
+Senaryo yönetimi
+Versiyonlara ek olarak “senaryo” (best/base/worst) veya simülasyon katmanı. Parametre setlerini senaryoya bağlayın.
+Onay akışı
+Bütçe girişleri için “Taslak → İnceleme → Onaylı” statü akışı ve kullanıcı rol bazlı izin.
+Bütçe–Fiili entegrasyonu
+Fiili verilerle (fact data) bütçe kıyasları, sapma analizi.
+Kural seti şablonları
+Sektörel/standart kural setleri. Kullanıcıların sık kullandığı rule’ları şablon olarak kaydetmesi.
+Versiyon parametre paketleri
+Parametre gruplarını (ör. “2026Q1 artış paketleri”) versiyona tek tıkla uygulama.
+2) Kullanıcı Deneyimi Önerileri
+
+Grid performansı + hızlı arama
+Büyük grid’lerde arama, hızlı filtre, sütun kilitleme ve “boyut grup özetleri”.
+Bulk import/export
+Sadece master data değil, grid verisi için Excel/CSV import-export.
+Rule set görselleştirme
+Uygulanan kuralların hücre bazında “neden” açıklaması.
+Şeffaflık
+“Bu hücre hangi kural/parametre ile hesaplandı?” tooltip veya panel.
+3) Teknik / Operasyonel Öneriler
+
+Hesaplama izolasyonu
+Büyük hesaplamalarda async job + progress (Celery zaten var).
+Versioning + audit
+Grid değişiklikleri için satır/hücre audit log’u, sadece ekranda değil veri bazında takip.
+Yetki matrisi
+Meta-entity yönetimi, sistem verileri, budget grid erişimi ayrı yetkilendirilmeli.
+Veri kalite kontrolleri
+Parametre format doğrulamaları, dönem aralığı boşsa gridin hesaplanmasını engelleme gibi guardrail’ler.

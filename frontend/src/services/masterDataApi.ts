@@ -107,8 +107,9 @@ export const metaAttributesApi = {
   }) => api.post<MetaAttribute>('/meta-attributes', data),
   update: (id: number, data: Partial<MetaAttribute>) =>
     api.put<MetaAttribute>(`/meta-attributes/${id}`, data),
-  delete: (id: number, force: boolean = false) =>
-    api.delete(`/meta-attributes/${id}`, { params: { force } }),
+  // Alanı ve ilişkili tüm değerlerini sil
+  delete: (id: number) =>
+    api.delete(`/meta-attributes/${id}`),
 };
 
 export const masterDataApi = {

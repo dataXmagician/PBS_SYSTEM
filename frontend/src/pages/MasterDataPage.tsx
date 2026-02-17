@@ -447,68 +447,64 @@ function MasterDataModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [referenceData, setReferenceData] = useState<Record<number, MasterData[]>>({});
-  const [loadingRef, setLoadingRef] = useState(false);
+  const [loadingRef, setLoadingRef] = useState(true); // Başlangıçta true
 
   const editableAttributes = entity.attributes?.filter(
     (a) => !a.is_code_field && !a.is_name_field && a.is_active
   ) || [];
 
-  // Debug: Modal açıldığında entity'yi logla
-  console.log('=== MasterDataModal opened ===');
-  console.log('Entity:', entity);
-  console.log('Entity ID:', entity.id);
-  console.log('All attributes:', entity.attributes);
-  console.log('Editable attributes:', editableAttributes);
-
-  // Reference attribute'ları göster
-  const debugRefAttrs = entity.attributes?.filter(a => a.data_type === 'reference') || [];
-  console.log('Reference type attributes:', debugRefAttrs);
-  debugRefAttrs.forEach(a => {
-    console.log(`  - ${a.code}: reference_entity_id = ${a.reference_entity_id}`);
-  });
+  // Reference attribute'ları hesapla
+  const refAttrs = entity.attributes?.filter(
+    (a) => a.data_type === 'reference' && a.reference_entity_id && a.is_active
+  ) || [];
 
   // Reference tipindeki attribute'lar için ilgili entity kayıtlarını yükle
   useEffect(() => {
+    let isMounted = true;
+
     const loadReferenceData = async () => {
-      console.log('useEffect triggered - loading reference data');
-
-      const refAttrs = entity.attributes?.filter(
-        (a) => a.data_type === 'reference' && a.reference_entity_id && a.is_active
-      ) || [];
-
-      console.log('Reference attributes to load:', refAttrs);
+      console.log('=== Loading Reference Data ===');
+      console.log('Entity:', entity.code);
+      console.log('Reference attributes:', refAttrs.map(a => `${a.code}(ref:${a.reference_entity_id})`));
 
       if (refAttrs.length === 0) {
-        console.log('No reference attributes with reference_entity_id found');
+        console.log('No reference attributes found');
+        if (isMounted) setLoadingRef(false);
         return;
       }
 
-      setLoadingRef(true);
       const newRefData: Record<number, MasterData[]> = {};
 
       for (const attr of refAttrs) {
         if (attr.reference_entity_id) {
-          console.log(`Loading records for reference_entity_id: ${attr.reference_entity_id}`);
           try {
+            console.log(`Loading entity ${attr.reference_entity_id} for ${attr.code}...`);
             const response = await masterDataApi.listByEntity(attr.reference_entity_id, {
               page: 1,
-              page_size: 1000,
+              page_size: 500, // Backend max 500 kabul ediyor
             });
-            console.log(`API Response for entity ${attr.reference_entity_id}:`, response.data);
-            newRefData[attr.reference_entity_id] = response.data.items;
             console.log(`Loaded ${response.data.items.length} records for entity ${attr.reference_entity_id}`);
+            newRefData[attr.reference_entity_id] = response.data.items;
           } catch (err) {
-            console.error(`Failed to load reference data for entity ${attr.reference_entity_id}`, err);
+            console.error(`Error loading entity ${attr.reference_entity_id}:`, err);
+            newRefData[attr.reference_entity_id] = [];
           }
         }
       }
 
-      setReferenceData(newRefData);
-      setLoadingRef(false);
+      if (isMounted) {
+        console.log('Setting referenceData:', newRefData);
+        setReferenceData(newRefData);
+        setLoadingRef(false);
+      }
     };
 
     loadReferenceData();
-  }, [entity.id, entity.attributes]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [entity.id]); // entity.id değiştiğinde yeniden yükle
 
   useEffect(() => {
     if (record) {

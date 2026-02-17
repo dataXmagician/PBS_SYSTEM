@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
+import logging
 
 from app.db.session import get_db
 from app.dependencies import get_current_user
@@ -21,6 +22,24 @@ from app.schemas.dynamic.meta_attribute import (
 )
 
 router = APIRouter(prefix="/meta-attributes", tags=["Meta Attributes - Anaveri Alanları"])
+logger = logging.getLogger(__name__)
+
+
+def enrich_attribute(attr: MetaAttribute, db: Session) -> MetaAttribute:
+    """Attribute'a ek bilgiler ekle"""
+    if attr.reference_entity_id:
+        ref_entity = db.query(MetaEntity).filter(MetaEntity.id == attr.reference_entity_id).first()
+        if ref_entity:
+            attr.reference_entity_code = ref_entity.code
+            attr.reference_entity_name = ref_entity.default_name
+
+    if attr.options:
+        try:
+            attr.options = json.loads(attr.options)
+        except:
+            attr.options = []
+
+    return attr
 
 
 @router.get("/entity/{entity_id}", response_model=List[MetaAttributeResponse])
@@ -34,30 +53,15 @@ async def list_attributes_by_entity(
     entity = db.query(MetaEntity).filter(MetaEntity.id == entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Anaveri tipi bulunamadı")
-    
+
     query = db.query(MetaAttribute).filter(MetaAttribute.entity_id == entity_id)
-    
+
     if not include_inactive:
         query = query.filter(MetaAttribute.is_active == True)
-    
+
     attributes = query.order_by(MetaAttribute.sort_order, MetaAttribute.id).all()
-    
-    # Reference entity bilgilerini ekle
-    for attr in attributes:
-        if attr.reference_entity_id:
-            ref_entity = db.query(MetaEntity).filter(MetaEntity.id == attr.reference_entity_id).first()
-            if ref_entity:
-                attr.reference_entity_code = ref_entity.code
-                attr.reference_entity_name = ref_entity.default_name
-        
-        # Options'ı parse et
-        if attr.options:
-            try:
-                attr.options = json.loads(attr.options)
-            except:
-                attr.options = []
-    
-    return attributes
+
+    return [enrich_attribute(attr, db) for attr in attributes]
 
 
 @router.get("/{attribute_id}", response_model=MetaAttributeResponse)
@@ -70,20 +74,8 @@ async def get_attribute(
     attr = db.query(MetaAttribute).filter(MetaAttribute.id == attribute_id).first()
     if not attr:
         raise HTTPException(status_code=404, detail="Alan bulunamadı")
-    
-    if attr.reference_entity_id:
-        ref_entity = db.query(MetaEntity).filter(MetaEntity.id == attr.reference_entity_id).first()
-        if ref_entity:
-            attr.reference_entity_code = ref_entity.code
-            attr.reference_entity_name = ref_entity.default_name
-    
-    if attr.options:
-        try:
-            attr.options = json.loads(attr.options)
-        except:
-            attr.options = []
-    
-    return attr
+
+    return enrich_attribute(attr, db)
 
 
 @router.post("", response_model=MetaAttributeResponse, status_code=status.HTTP_201_CREATED)
@@ -93,31 +85,28 @@ async def create_attribute(
     current_user: User = Depends(get_current_user)
 ):
     """Yeni alan oluştur"""
-    # Entity kontrolü
     entity = db.query(MetaEntity).filter(MetaEntity.id == data.entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Anaveri tipi bulunamadı")
-    
-    # Kod kontrolü (aynı entity içinde unique)
+
     existing = db.query(MetaAttribute).filter(
         MetaAttribute.entity_id == data.entity_id,
         MetaAttribute.code == data.code.upper()
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"'{data.code}' kodu bu anaveri tipinde zaten var")
-    
-    # Reference entity kontrolü
+
     data_type_value = data.data_type.value if hasattr(data.data_type, 'value') else data.data_type
     if data_type_value == "reference" and data.reference_entity_id:
         ref_entity = db.query(MetaEntity).filter(MetaEntity.id == data.reference_entity_id).first()
         if not ref_entity:
             raise HTTPException(status_code=400, detail="Referans anaveri tipi bulunamadı")
-    
+
     attr = MetaAttribute(
         entity_id=data.entity_id,
         code=data.code.upper(),
         default_label=data.default_label,
-        data_type=data_type_value,  # lowercase string: "string", "integer", etc.
+        data_type=data_type_value,
         options=json.dumps(data.options) if data.options else None,
         reference_entity_id=data.reference_entity_id,
         default_value=data.default_value,
@@ -131,15 +120,12 @@ async def create_attribute(
         max_length=data.max_length,
         sort_order=data.sort_order
     )
-    
+
     db.add(attr)
     db.commit()
     db.refresh(attr)
-    
-    if attr.options:
-        attr.options = json.loads(attr.options)
-    
-    return attr
+
+    return enrich_attribute(attr, db)
 
 
 @router.post("/bulk", response_model=List[MetaAttributeResponse], status_code=status.HTTP_201_CREATED)
@@ -152,25 +138,23 @@ async def create_attributes_bulk(
     entity = db.query(MetaEntity).filter(MetaEntity.id == data.entity_id).first()
     if not entity:
         raise HTTPException(status_code=404, detail="Anaveri tipi bulunamadı")
-    
+
     created = []
     for attr_data in data.attributes:
-        # Kod kontrolü
         existing = db.query(MetaAttribute).filter(
             MetaAttribute.entity_id == data.entity_id,
             MetaAttribute.code == attr_data.code.upper()
         ).first()
         if existing:
-            continue  # Atla, hata verme
+            continue
 
-        # data_type değerini al
         attr_data_type = attr_data.data_type.value if hasattr(attr_data.data_type, 'value') else attr_data.data_type
 
         attr = MetaAttribute(
             entity_id=data.entity_id,
             code=attr_data.code.upper(),
             default_label=attr_data.default_label,
-            data_type=attr_data_type,  # lowercase string: "string", "integer", etc.
+            data_type=attr_data_type,
             options=json.dumps(attr_data.options) if attr_data.options else None,
             reference_entity_id=attr_data.reference_entity_id,
             default_value=attr_data.default_value,
@@ -182,15 +166,10 @@ async def create_attributes_bulk(
         )
         db.add(attr)
         created.append(attr)
-    
+
     db.commit()
-    
-    for attr in created:
-        db.refresh(attr)
-        if attr.options:
-            attr.options = json.loads(attr.options)
-    
-    return created
+
+    return [enrich_attribute(attr, db) for attr in created]
 
 
 @router.put("/{attribute_id}", response_model=MetaAttributeResponse)
@@ -204,65 +183,63 @@ async def update_attribute(
     attr = db.query(MetaAttribute).filter(MetaAttribute.id == attribute_id).first()
     if not attr:
         raise HTTPException(status_code=404, detail="Alan bulunamadı")
-    
+
     if attr.is_system:
-        # Sistem alanlarında sadece label değiştirilebilir
         if data.default_label:
             attr.default_label = data.default_label
         db.commit()
         db.refresh(attr)
-        return attr
-    
+        return enrich_attribute(attr, db)
+
     update_data = data.dict(exclude_unset=True)
-    
-    # Options JSON'a çevir
+
     if "options" in update_data and update_data["options"]:
         update_data["options"] = json.dumps(update_data["options"])
-    
+
     for field, value in update_data.items():
         setattr(attr, field, value)
-    
+
     db.commit()
     db.refresh(attr)
-    
-    if attr.options:
-        try:
-            attr.options = json.loads(attr.options)
-        except:
-            attr.options = []
-    
-    return attr
+
+    return enrich_attribute(attr, db)
 
 
 @router.delete("/{attribute_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_attribute(
     attribute_id: int,
-    force: bool = Query(False, description="True ise değerler de silinir"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Alan sil. force=true ile değerler de silinir."""
+    """
+    Alanı ve ilişkili tüm değerlerini sil.
+
+    - Sistem alanları (CODE, NAME) silinemez
+    - Özel alanlar (kullanıcı tanımlı) her zaman silinebilir
+    - İlişkili değerler otomatik silinir
+    """
+    logger.info(f"Delete attribute request: id={attribute_id}")
+
     attr = db.query(MetaAttribute).filter(MetaAttribute.id == attribute_id).first()
     if not attr:
         raise HTTPException(status_code=404, detail="Alan bulunamadı")
 
+    # Sistem alanları silinemez
     if attr.is_system:
-        raise HTTPException(status_code=400, detail="Sistem alanları silinemez")
+        raise HTTPException(
+            status_code=400,
+            detail="Sistem alanları (CODE, NAME) silinemez. Bu alanlar anaveri yapısının temelini oluşturur."
+        )
 
-    # Değer var mı kontrol et
-    value_count = db.query(MasterDataValue).filter(MasterDataValue.attribute_id == attr.id).count()
+    # Önce ilişkili değerleri sil
+    deleted_values = db.query(MasterDataValue).filter(MasterDataValue.attribute_id == attr.id).delete()
+    logger.info(f"Deleted {deleted_values} values for attribute {attr.code}")
 
-    if value_count > 0:
-        if not force:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Bu alanda {value_count} değer var. Silmek için 'force' parametresini kullanın."
-            )
-        # Force delete - önce değerleri sil
-        db.query(MasterDataValue).filter(MasterDataValue.attribute_id == attr.id).delete()
-
+    # Sonra attribute'u sil
     db.delete(attr)
     db.commit()
+    logger.info(f"Attribute {attr.code} (id={attribute_id}) deleted successfully")
+
     return None
 
 
@@ -277,9 +254,9 @@ async def reorder_attribute(
     attr = db.query(MetaAttribute).filter(MetaAttribute.id == attribute_id).first()
     if not attr:
         raise HTTPException(status_code=404, detail="Alan bulunamadı")
-    
+
     attr.sort_order = sort_order
     db.commit()
     db.refresh(attr)
-    
-    return attr
+
+    return enrich_attribute(attr, db)

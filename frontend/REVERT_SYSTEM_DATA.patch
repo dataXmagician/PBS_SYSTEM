@@ -1,0 +1,93 @@
+*** Begin Patch
+*** Update File: src/components/LayoutProvider.tsx
+@@
+   const navItems = [
+     {
+       label: 'Dashboard',
+       path: '/dashboard',
+       icon: LayoutDashboard,
+       description: 'Bütçe özeti',
+     },
+-    {
+-      label: 'Sistem Verileri',
+-      path: '/system-data',
+-      icon: Database,
+-      description: 'Versiyon ve dönem yönetimi',
+-    },
+     {
+       label: 'Anaveri Yönetimi',
+       path: '/meta-entities',
+       icon: Database,
+       description: 'Dinamik anaveri tipleri',
+     },
+*** End Patch
+
+*** Begin Patch
+*** Update File: src/App.tsx
+@@
+-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
++import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+@@
+-// System Data pages
+-import { SystemDataPage } from './pages/SystemDataPage';
+-import { VersionsPage } from './pages/VersionsPage';
+-import { PeriodsPage } from './pages/PeriodsPage';
++// (system-data routes removed)
+@@
+-        {/* System Data routes */}
+-        <Route
+-          path="/system-data"
+-          element={
+-            <ProtectedRoute>
+-              <SystemDataPage />
+-            </ProtectedRoute>
+-          }
+-        />
+-
+-        <Route
+-          path="/system-data/versions"
+-          element={
+-            <ProtectedRoute>
+-              <VersionsPage />
+-            </ProtectedRoute>
+-          }
+-        />
+-
+-        <Route
+-          path="/system-data/periods"
+-          element={
+-            <ProtectedRoute>
+-              <PeriodsPage />
+-            </ProtectedRoute>
+-          }
+-        />
+-
+-        <Route
+-          path="/system-data/:entity"
+-          element={
+-            <ProtectedRoute>
+-              <SystemDataRouteRedirect />
+-            </ProtectedRoute>
+-          }
+-        />
++        
+@@
+-function SystemDataRouteRedirect() {
+-  const params = useParams();
+-  const entity = params.entity || '';
+-  if (entity === 'versions') return <Navigate to="/system-data/versions" />;
+-  if (entity === 'periods') return <Navigate to="/system-data/periods" />;
+-  return <Navigate to="/system-data" />;
+-}
++// (SystemDataRouteRedirect removed)
+*** End Patch
+
+*** Begin Patch
+*** Delete File: src/pages/PeriodsPage.tsx
+*** End Patch
+
+*** Begin Patch
+*** Delete File: CHANGES_SYSTEM_DATA.md
+*** End Patch
+
+*** End Patch

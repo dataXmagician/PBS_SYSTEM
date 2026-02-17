@@ -98,9 +98,15 @@ class AuthService:
         if not payload:
             logger.warning("Token doğrulama başarısız")
             return None
-        
         user_id = payload.get("user_id")
-        user = UserRepository.get_by_id(db, UUID(user_id))
+        # Safely convert user_id to UUID - handle malformed values
+        try:
+            user_uuid = UUID(user_id)
+        except Exception as e:
+            logger.warning(f"Geçersiz user_id in token payload: {user_id} - {e}")
+            return None
+
+        user = UserRepository.get_by_id(db, user_uuid)
         
         if not user:
             logger.warning(f"Kullanıcı bulunamadı: {user_id}")

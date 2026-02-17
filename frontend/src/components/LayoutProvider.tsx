@@ -10,6 +10,7 @@ import {
   Menu,
   Database,
   FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -69,10 +70,22 @@ function Sidebar() {
       description: 'Bütçe özeti',
     },
     {
+      label: 'Sistem Verileri',
+      path: '/system-data',
+      icon: Database,
+      description: 'Versiyon ve dönem yönetimi',
+    },
+    {
       label: 'Anaveri Yönetimi',
       path: '/meta-entities',
       icon: Database,
       description: 'Dinamik anaveri tipleri',
+    },
+    {
+      label: 'Bütçe Girişleri',
+      path: '/budget-entries',
+      icon: FileSpreadsheet,
+      description: 'Bütçe veri girişi ve hesaplama',
     },
     {
       label: 'Analytics',

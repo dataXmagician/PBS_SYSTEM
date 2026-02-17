@@ -30,32 +30,18 @@ from app.schemas.dynamic.master_data import (
 router = APIRouter(prefix="/master-data", tags=["Master Data - Anaveri Kayıtları"])
 
 
-def get_flat_values(db: Session, master_data: MasterData) -> Dict[str, Any]:
-    """Alan değerlerini flat dict olarak döndür"""
-    flat = {"CODE": master_data.code, "NAME": master_data.name}
-
-    for val in master_data.values:
-        attr = db.query(MetaAttribute).filter(MetaAttribute.id == val.attribute_id).first()
-        if attr:
-            # Reference tipinde reference_display kullan
-            if val.reference_id:
-                ref_record = db.query(MasterData).filter(MasterData.id == val.reference_id).first()
-                if ref_record:
-                    flat[attr.code] = f"{ref_record.code} - {ref_record.name}"
-                else:
-                    flat[attr.code] = val.value
-            else:
-                flat[attr.code] = val.value
-
-    return flat
-
-
 def enrich_response(db: Session, record: MasterData) -> MasterData:
     """Response'u zenginleştir"""
+    import logging
+    logger = logging.getLogger(__name__)
+
     entity = db.query(MetaEntity).filter(MetaEntity.id == record.entity_id).first()
     record.entity_code = entity.code if entity else ""
     record.entity_name = entity.default_name if entity else ""
-    
+
+    # flat_values başlat
+    flat_values = {"CODE": record.code, "NAME": record.name}
+
     # Values'ı zenginleştir
     enriched_values = []
     for val in record.values:
@@ -64,18 +50,28 @@ def enrich_response(db: Session, record: MasterData) -> MasterData:
             val.attribute_code = attr.code
             val.attribute_label = attr.default_label
             val.data_type = attr.data_type.value if hasattr(attr.data_type, 'value') else attr.data_type
-            
-            # Reference display
-            if val.reference_id:
+
+            logger.info(f"Processing attr {attr.code}: reference_id={val.reference_id}, value={val.value}")
+
+            # Reference tipi için reference_display ve flat_values
+            if val.reference_id is not None:
                 ref_record = db.query(MasterData).filter(MasterData.id == val.reference_id).first()
                 if ref_record:
-                    val.reference_display = f"{ref_record.code} - {ref_record.name}"
-            
+                    display_value = f"{ref_record.code} - {ref_record.name}"
+                    val.reference_display = display_value
+                    flat_values[attr.code] = display_value
+                    logger.info(f"Set flat_values[{attr.code}] = {display_value}")
+                else:
+                    flat_values[attr.code] = val.value
+            else:
+                flat_values[attr.code] = val.value
+
             enriched_values.append(val)
-    
+
     record.values = enriched_values
-    record.flat_values = get_flat_values(db, record)
-    
+    record.flat_values = flat_values
+    logger.info(f"Final flat_values: {flat_values}")
+
     return record
 
 

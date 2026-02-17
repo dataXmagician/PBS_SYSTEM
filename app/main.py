@@ -24,6 +24,12 @@ from app.api.v1.dynamic import (
     fact_data_router
 )
 
+# System Data Routes
+from app.api.v1 import system_data
+
+# Budget Entry Routes
+from app.api.v1 import budget_entries
+
 # Logger setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,9 +45,10 @@ app = FastAPI(
 )
 
 # CORS Configuration
+# CORS Configuration - allow local frontend origins for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,6 +73,12 @@ app.include_router(meta_attributes_router, prefix="/api/v1")
 app.include_router(master_data_router, prefix="/api/v1")
 app.include_router(fact_definitions_router, prefix="/api/v1")
 app.include_router(fact_data_router, prefix="/api/v1")
+
+# System Data Routes
+app.include_router(system_data.router, prefix="/api/v1")
+
+# Budget Entry Routes
+app.include_router(budget_entries.router, prefix="/api/v1")
 
 # Health Check Endpoint
 @app.get("/health", tags=["Health"])

@@ -113,8 +113,8 @@ export function EntityEditPage() {
 
   const handleDeleteAttr = async (id: number) => {
     try {
-      // ONAY yazıldığında force=true ile sil (değerler de silinir)
-      await metaAttributesApi.delete(id, true);
+      // ONAY yazıldığında sil (backend varsayılan olarak force=true kullanır)
+      await metaAttributesApi.delete(id);
       setDeleteConfirm({ show: false, attrId: null, attrName: '', confirmText: '', errorMessage: '' });
       loadData();
     } catch (error: any) {
