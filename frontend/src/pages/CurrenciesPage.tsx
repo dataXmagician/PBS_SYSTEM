@@ -43,7 +43,7 @@ export function CurrenciesPage() {
       await systemDataApi.deleteCurrency(id);
       loadData();
     } catch (error: any) {
-      alert(error.response?.data?.detail || 'Silme basarisiz');
+      alert(error.response?.data?.detail || 'Silme başarısız');
     }
   };
 
@@ -52,12 +52,12 @@ export function CurrenciesPage() {
       await systemDataApi.updateCurrency(currency.id, { is_active: !currency.is_active });
       loadData();
     } catch (error: any) {
-      alert(error.response?.data?.detail || 'Guncelleme basarisiz');
+      alert(error.response?.data?.detail || 'Güncelleme başarısız');
     }
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-gray-900">
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => navigate('/system-data')}
@@ -98,7 +98,7 @@ export function CurrenciesPage() {
           <tbody className="divide-y divide-gray-200">
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-gray-500">Yukleniyor...</td>
+                <td colSpan={4} className="px-4 py-8 text-center text-gray-500">Yükleniyor...</td>
               </tr>
             ) : currencies.length === 0 ? (
               <tr>
@@ -132,7 +132,7 @@ export function CurrenciesPage() {
                       <button
                         onClick={() => { setEditingCurrency(c); setShowModal(true); }}
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                        title="Duzenle"
+                        title="Düzenle"
                       >
                         <Edit size={16} />
                       </button>
@@ -203,7 +203,7 @@ function CurrencyModal({
       <div className="bg-white rounded-xl p-6 w-full max-w-lg text-gray-900">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">
-            {currency ? 'Para Birimi Duzenle' : 'Yeni Para Birimi'}
+            {currency ? 'Para Birimi Düzenle' : 'Yeni Para Birimi'}
           </h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
             <X size={20} />
@@ -260,7 +260,7 @@ function CurrencyModal({
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
-              Iptal
+              İptal
             </button>
             <button
               type="submit"

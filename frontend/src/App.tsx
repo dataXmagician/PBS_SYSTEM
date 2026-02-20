@@ -22,6 +22,9 @@ import { AuditLogsPage } from './pages/AuditLogsPage';
 import { BudgetEntriesPage } from './pages/BudgetEntriesPage';
 import { BudgetGridPage } from './pages/BudgetGridPage';
 
+// Data Connections Page
+import { DataConnectionsPage } from './pages/DataConnectionsPage';
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((state) => state.token);
   return token ? (
@@ -106,6 +109,16 @@ export default function App() {
           element={
             <ProtectedRoute>
               <BudgetGridPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Data Connections */}
+        <Route
+          path="/data-connections"
+          element={
+            <ProtectedRoute>
+              <DataConnectionsPage />
             </ProtectedRoute>
           }
         />

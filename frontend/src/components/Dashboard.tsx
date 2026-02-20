@@ -76,7 +76,7 @@ export function Dashboard() {
   }));
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-gray-900">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-gradient-to-br from-blue-900 to-blue-800 rounded-lg p-6 border border-slate-700">

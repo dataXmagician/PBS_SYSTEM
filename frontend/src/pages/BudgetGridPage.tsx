@@ -434,7 +434,7 @@ export function BudgetGridPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full text-gray-900">
       {/* Toolbar */}
       <div className="flex-shrink-0 bg-gray-800 border-b border-gray-700 px-4 py-3">
         <div className="flex items-center justify-between">
@@ -851,7 +851,7 @@ function RuleSetPanel({
                 <button
                   onClick={() => onEdit(rs)}
                   className="p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded"
-                  title="Duzenle"
+                  title="Düzenle"
                 >
                   <Edit2 size={14} />
                 </button>
@@ -1095,7 +1095,7 @@ function DeleteRuleSetModal({
             onClick={onClose}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
           >
-            Iptal
+            İptal
           </button>
           <button
             type="button"
@@ -1273,7 +1273,7 @@ function RuleSetFormModal({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl p-6 w-full max-w-2xl text-gray-900 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">{isEdit ? 'Kural Seti Duzenle' : 'Yeni Kural Seti'}</h2>
+          <h2 className="text-xl font-bold">{isEdit ? 'Kural Seti Düzenle' : 'Yeni Kural Seti'}</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
             <X size={20} />
           </button>
@@ -1311,7 +1311,7 @@ function RuleSetFormModal({
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Aciklama</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
             <input
               type="text"
               value={description}
@@ -1631,14 +1631,14 @@ function RuleSetFormModal({
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
-              Iptal
+              İptal
             </button>
             <button
               type="submit"
               disabled={saving}
               className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
             >
-              {saving ? 'Kaydediliyor...' : isEdit ? 'Guncelle' : 'Olustur'}
+              {saving ? 'Kaydediliyor...' : isEdit ? 'Güncelle' : 'Oluştur'}
             </button>
           </div>
         </form>

@@ -55,7 +55,7 @@ export function PeriodsPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-gray-900">
       <div className="flex items-center gap-4 mb-6">
         <button
           onClick={() => navigate('/system-data')}

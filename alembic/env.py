@@ -27,6 +27,10 @@ from app.models.budget_entry import (
     BudgetType, BudgetTypeMeasure, BudgetDefinition, BudgetDefinitionDimension,
     BudgetEntryRow, BudgetEntryCell, RuleSet, RuleSetItem
 )
+from app.models.dwh import (
+    DwhTable, DwhColumn, DwhTransfer, DwhSchedule,
+    DwhTransferLog, DwhMapping, DwhFieldMapping
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

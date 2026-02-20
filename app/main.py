@@ -30,6 +30,9 @@ from app.api.v1 import system_data
 # Budget Entry Routes
 from app.api.v1 import budget_entries
 
+# Data Connections Routes
+from app.api.v1 import data_connections
+
 # Logger setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -79,6 +82,9 @@ app.include_router(system_data.router, prefix="/api/v1")
 
 # Budget Entry Routes
 app.include_router(budget_entries.router, prefix="/api/v1")
+
+# Data Connections Routes
+app.include_router(data_connections.router, prefix="/api/v1")
 
 # Health Check Endpoint
 @app.get("/health", tags=["Health"])

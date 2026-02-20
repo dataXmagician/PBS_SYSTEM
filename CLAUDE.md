@@ -328,6 +328,21 @@ When creating new PostgreSQL enums in migrations:
 - Use `create_type=False` in the SQLAlchemy model Column definition
 - Use `checkfirst=True` when creating the enum in Alembic migrations to avoid duplicate type errors
 
+**CRITICAL: Python Enum Member Names MUST Be Lowercase**
+SQLAlchemy with `create_type=False` sends the Python Enum's `.name` (member name) to PostgreSQL, NOT the `.value`. Since PostgreSQL native enums store lowercase values, Python enum member names **must always be lowercase** (name == value). This applies to ALL enums in the project.
+
+```python
+# CORRECT pattern (name matches value, both lowercase):
+class MyStatus(str, enum.Enum):
+    active = "active"       # .name = "active" → PostgreSQL accepts ✓
+    inactive = "inactive"
+
+# WRONG pattern (name is uppercase, PostgreSQL rejects):
+class MyStatus(str, enum.Enum):
+    ACTIVE = "active"       # .name = "ACTIVE" → PostgreSQL error! ✗
+    INACTIVE = "inactive"
+```
+
 ### Important: SQLAlchemy Relationships
 When fetching entities with related data (e.g., MetaEntity with attributes), use `joinedload`:
 ```python
@@ -399,10 +414,19 @@ app.include_router(fact_data_router, prefix="/api/v1")
 
 ### UI Color Guidelines
 The application uses a dark theme body (`text-gray-100`). When creating white background containers:
+- **CRITICAL**: Every new page component's outermost `<div>` MUST include `text-gray-900` (e.g., `<div className="p-6 text-gray-900">`)
 - Always add `text-gray-900` to white background containers
 - Form inputs: `bg-white text-gray-900`
 - Buttons on white: `bg-white text-gray-700`
 - Modals: Add `text-gray-900` to modal container
+- Without `text-gray-900`, text and icons inherit `text-gray-100` from the body and become invisible on white backgrounds
+
+### Turkish Character Rule (Türkçe Karakter Kuralı)
+All UI-facing text **MUST** use proper Turkish special characters. ASCII-only fallback is **NOT acceptable**.
+- Always use: ç, ş, ğ, ı, ö, ü, İ, Ş, Ç, Ğ, Ö, Ü
+- **Wrong**: `Baglanti`, `Duzenle`, `Iptal`, `Guncelle`, `Olustur`, `Aciklama`, `basarisiz`, `Yukleniyor`
+- **Correct**: `Bağlantı`, `Düzenle`, `İptal`, `Güncelle`, `Oluştur`, `Açıklama`, `başarısız`, `Yükleniyor`
+- This applies to: button labels, form labels, error messages, alert texts, title attributes, placeholder text, table headers, modal titles, and any other user-visible string
 
 ## Environment Variables
 
@@ -424,6 +448,53 @@ npm run dev
 
 ### Interface Exports
 Due to Vite HMR issues, TypeScript interfaces are defined locally in each page component rather than imported from `masterDataApi.ts`.
+
+## Data Connections Module (Veri Baglantilari)
+
+External data source connections for importing data from SAP OData, HANA DB, and files (CSV/Excel/Parquet) into PostgreSQL staging tables.
+
+### Architecture
+- **Models**: `app/models/data_connection.py` - 6 models (DataConnection, DataConnectionQuery, DataConnectionColumn, DataSyncLog, DataConnectionMapping, DataConnectionFieldMapping)
+- **Schemas**: `app/schemas/data_connection.py` - CRUD + mapping + detection schemas
+- **API Router**: `app/api/v1/data_connections.py` - prefix `/data-connections`, 25+ endpoints
+- **Services**:
+  - `app/services/connection_manager.py` - SAP OData (requests), HANA DB (hdbcli), File (pandas) connectors
+  - `app/services/data_sync_service.py` - Column detection, staging table DDL, sync execution
+  - `app/services/data_mapping_service.py` - Staging -> MasterData upsert via field mappings
+- **Frontend**: `frontend/src/pages/DataConnectionsPage.tsx` - Master-detail layout with inline modals
+- **API Service**: `frontend/src/services/dataConnectionApi.ts`
+
+### Connection Types
+- `sap_odata`: REST/OData with Basic auth, `sap-client` header, `d.results` parsing, pagination via `__next`
+- `hana_db`: hdbcli driver, SQL queries, `SELECT 1 FROM DUMMY` for test
+- `file_upload`: pandas (read_csv, read_excel, read_parquet), configurable delimiter/encoding
+
+### Data Flow
+1. Create connection (host, credentials)
+2. Create query (SQL / OData entity / file parse config)
+3. Detect columns (auto-detect types from sample data)
+4. Save column definitions
+5. Sync: Creates staging table (`staging_{conn_code}_{query_code}`), TRUNCATE + INSERT
+6. Preview staging data
+7. Optional: Create mapping -> field mappings -> execute (staging -> MasterData upsert)
+
+### Staging Tables
+- Dynamic PostgreSQL tables created at runtime (NOT in migrations)
+- Naming: `staging_{conn_code}_{query_code}` (lowercase)
+- Auto-adds `_staging_id SERIAL PK` and `_synced_at TIMESTAMP`
+- Full refresh strategy (TRUNCATE before INSERT)
+
+### PostgreSQL Enums
+- `connectiontype`: sap_odata, hana_db, file_upload
+- `syncstatus`: pending, running, success, failed
+- `columndatatype`: string, integer, decimal, boolean, date, datetime
+- `mappingtargettype`: master_data, system_version, system_period, system_parameter, budget_entry
+
+### Credential Storage
+**MVP: Plaintext** passwords stored in `data_connections.password`. TODO: Add Fernet encryption in future iteration.
+
+### Frontend Route
+- `/data-connections` -> `DataConnectionsPage` (nav item: "Veri Baglantilari" with Cable icon)
 
 ## Notes
 

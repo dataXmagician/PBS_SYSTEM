@@ -11,6 +11,7 @@ import {
   Database,
   FileText,
   FileSpreadsheet,
+  Cable,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 
@@ -86,6 +87,12 @@ function Sidebar() {
       path: '/budget-entries',
       icon: FileSpreadsheet,
       description: 'Bütçe veri girişi ve hesaplama',
+    },
+    {
+      label: 'Veri Bağlantıları',
+      path: '/data-connections',
+      icon: Cable,
+      description: 'Dış kaynak bağlantıları',
     },
     {
       label: 'Analytics',
@@ -253,6 +260,7 @@ function Header() {
     '/meta-entities': { title: 'Anaveri Yönetimi', description: 'Dinamik anaveri tiplerini yönetin' },
     '/analytics': { title: 'Analytics', description: 'Detaylı analiz ve grafikler' },
     '/audit-logs': { title: 'Audit Logs', description: 'Sistem aktivite kayıtları' },
+    '/data-connections': { title: 'Veri Bağlantıları', description: 'Dış kaynak bağlantıları ve veri aktarımı' },
   };
 
   // Check for dynamic routes

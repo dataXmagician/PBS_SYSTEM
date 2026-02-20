@@ -81,7 +81,7 @@ export function SystemDataPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-gray-900">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Sistem Verileri</h1>
         <p className="text-gray-400 mt-1">Bütçe versiyonları, dönem ve parametre yönetimi</p>

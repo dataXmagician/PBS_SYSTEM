@@ -105,7 +105,7 @@ export function BudgetEntriesPage() {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-gray-900">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -128,7 +128,7 @@ export function BudgetEntriesPage() {
 
       {/* Definition Cards */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Yukleniyor...</div>
+        <div className="text-center py-12 text-gray-400">Yükleniyor...</div>
       ) : definitions.length === 0 ? (
         <div className="text-center py-16">
           <FileSpreadsheet size={48} className="mx-auto text-gray-500 mb-4" />
@@ -268,7 +268,7 @@ function CreateDefinitionModal({
     e.preventDefault();
     if (!versionId || !budgetTypeId) return;
     if (selectedEntityIds.length === 0) {
-      setError('En az bir boyut (anaveri tipi) secmelisiniz');
+      setError('En az bir boyut (anaveri tipi) seçmelisiniz');
       return;
     }
 
@@ -300,7 +300,7 @@ function CreateDefinitionModal({
         </div>
 
         {loading ? (
-          <div className="py-8 text-center text-gray-500">Yukleniyor...</div>
+          <div className="py-8 text-center text-gray-500">Yükleniyor...</div>
         ) : (
           <form onSubmit={handleSubmit}>
             {error && (
