@@ -276,6 +276,10 @@ class DataConnectionMapping(BaseModel):
 
     # master_data hedefi icin: hangi MetaEntity'ye yazilacak
     target_entity_id = Column(Integer, nullable=True)
+    # budget_entry hedefi icin: FactDefinition ID
+    target_definition_id = Column(Integer, nullable=True)
+    # system versiyon/donem icin
+    target_version_id = Column(Integer, nullable=True)
 
     name = Column(String(200), nullable=False)
     description = Column(String(500), nullable=True)

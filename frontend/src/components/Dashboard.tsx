@@ -15,6 +15,9 @@ import {
 import { Database, Plus, ArrowRight } from 'lucide-react';
 import { metaEntitiesApi } from '../services/masterDataApi';
 
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+
 interface MetaEntity {
   id: number;
   uuid: string;
@@ -171,55 +174,51 @@ export function Dashboard() {
       <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-blue-400">🗂️ Anaveri Tipleri</h3>
-          <button
-            onClick={() => navigate('/meta-entities')}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-          >
+          <Button onClick={() => navigate('/meta-entities')}>
             <Plus size={18} />
             Yeni Tip Ekle
-          </button>
+          </Button>
         </div>
 
         {entities.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {entities.map((entity) => (
-              <div
+              <Card
                 key={entity.id}
+                className="bg-slate-700/50 border-slate-600 hover:border-blue-500 cursor-pointer transition-all hover:shadow-lg"
                 onClick={() => navigate(`/master-data/${entity.id}`)}
-                className="bg-slate-700/50 rounded-lg p-4 border border-slate-600 hover:border-blue-500 cursor-pointer transition-all hover:shadow-lg"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-600/20 rounded-lg">
-                      <Database size={20} className="text-blue-400" />
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-600/20 rounded-lg">
+                        <Database size={20} className="text-blue-400" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-white">{entity.default_name}</h4>
+                        <p className="text-xs text-slate-400">{entity.code}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-white">{entity.default_name}</h4>
-                      <p className="text-xs text-slate-400">{entity.code}</p>
-                    </div>
+                    <ArrowRight size={18} className="text-slate-400" />
                   </div>
-                  <ArrowRight size={18} className="text-slate-400" />
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Kayıt Sayısı</span>
-                  <span className="font-bold text-blue-400">{entity.record_count}</span>
-                </div>
-                {entity.description && (
-                  <p className="text-xs text-slate-500 mt-2 truncate">{entity.description}</p>
-                )}
-              </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400">Kayıt Sayısı</span>
+                    <span className="font-bold text-blue-400">{entity.record_count}</span>
+                  </div>
+                  {entity.description && (
+                    <p className="text-xs text-slate-500 mt-2 truncate">{entity.description}</p>
+                  )}
+                </CardContent>
+              </Card>
             ))}
           </div>
         ) : (
           <div className="text-center py-12">
             <Database size={48} className="mx-auto text-slate-600 mb-4" />
             <p className="text-slate-400 mb-4">Henüz anaveri tipi tanımlanmamış</p>
-            <button
-              onClick={() => navigate('/meta-entities')}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
+            <Button onClick={() => navigate('/meta-entities')}>
               İlk Tipini Oluştur
-            </button>
+            </Button>
           </div>
         )}
       </div>

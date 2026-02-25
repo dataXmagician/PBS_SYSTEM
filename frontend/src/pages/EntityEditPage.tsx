@@ -14,6 +14,16 @@ import {
 } from 'lucide-react';
 import { metaEntitiesApi, metaAttributesApi } from '../services/masterDataApi';
 
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+
 type AttributeType = 'string' | 'integer' | 'decimal' | 'boolean' | 'date' | 'datetime' | 'list' | 'reference';
 
 interface MetaAttribute {
@@ -140,12 +150,13 @@ export function EntityEditPage() {
     <div className="p-6 text-gray-900">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => navigate(`/master-data/${entityId}`)}
-          className="p-2 hover:bg-gray-100 rounded-lg text-gray-700"
         >
           <ArrowLeft size={20} />
-        </button>
+        </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">
             {entity?.default_name} - Alan Yönetimi
@@ -155,7 +166,8 @@ export function EntityEditPage() {
       </div>
 
       {/* Entity Info Card */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 text-gray-900">
+      <Card className="mb-6 text-gray-900">
+        <CardContent className="p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Anaveri Bilgileri</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -171,19 +183,17 @@ export function EntityEditPage() {
             <p className="font-medium text-gray-900">{entity?.description || '-'}</p>
           </div>
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Attributes */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden text-gray-900">
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Alanlar</h2>
-          <button
-            onClick={() => setShowAddChoiceModal(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-          >
+          <Button onClick={() => setShowAddChoiceModal(true)}>
             <Plus size={18} />
             Alan Ekle
-          </button>
+          </Button>
         </div>
 
         <div className="divide-y divide-gray-200">
@@ -199,14 +209,10 @@ export function EntityEditPage() {
                   <span className="font-medium text-gray-900">{attr.default_label}</span>
                   <span className="text-sm text-gray-500">({attr.code})</span>
                   {attr.is_system && (
-                    <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">
-                      Sistem
-                    </span>
+                    <Badge variant="secondary" className="text-xs">Sistem</Badge>
                   )}
                   {attr.is_required && (
-                    <span className="px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded">
-                      Zorunlu
-                    </span>
+                    <Badge variant="destructive" className="text-xs">Zorunlu</Badge>
                   )}
                 </div>
                 <p className="text-sm text-gray-500">
@@ -224,21 +230,25 @@ export function EntityEditPage() {
                 </p>
               </div>
 
-              <div className="flex gap-2">
-                <button
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-gray-400 hover:text-blue-600"
                   onClick={() => setEditingAttr(attr)}
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
                   disabled={attr.is_system}
                 >
                   <Edit size={18} />
-                </button>
+                </Button>
                 {!attr.is_system && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-gray-400 hover:text-red-600"
                     onClick={() => confirmDelete(attr)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
                   >
                     <Trash2 size={18} />
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -335,14 +345,16 @@ function ConfirmModal({
   const isConfirmValid = confirmText.toUpperCase() === 'ONAY';
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md text-gray-900 shadow-2xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-red-100 rounded-full">
-            <AlertTriangle className="text-red-600" size={24} />
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="max-w-md text-gray-900">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-red-100 rounded-full">
+              <AlertTriangle className="text-red-600" size={24} />
+            </div>
+            <DialogTitle>{title}</DialogTitle>
           </div>
-          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-        </div>
+        </DialogHeader>
 
         <p className="text-gray-600 mb-2">
           <strong>"{itemName}"</strong> alanını silmek istediğinize emin misiniz?
@@ -362,33 +374,25 @@ function ConfirmModal({
           <p className="text-sm text-amber-800 mb-2">
             Bu işlemi onaylamak için aşağıya <strong>"ONAY"</strong> yazın:
           </p>
-          <input
-            type="text"
+          <Input
             value={confirmText}
             onChange={(e) => onConfirmTextChange(e.target.value)}
             placeholder="ONAY"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            className="bg-white text-gray-900 focus:ring-red-500"
             autoFocus
           />
         </div>
 
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700 font-medium transition"
-          >
+        <DialogFooter className="mt-6">
+          <Button variant="outline" onClick={onCancel}>
             İptal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={!isConfirmValid}
-            className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={!isConfirmValid}>
             Sil
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -403,10 +407,12 @@ function AddChoiceModal({
   onSelectReference: () => void;
 }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md text-gray-900">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Alan Ekle</h2>
-        <p className="text-gray-500 mb-6">Hangi tip alan eklemek istiyorsunuz?</p>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md text-gray-900">
+        <DialogHeader>
+          <DialogTitle>Alan Ekle</DialogTitle>
+        </DialogHeader>
+        <p className="text-gray-500 mb-4">Hangi tip alan eklemek istiyorsunuz?</p>
 
         <div className="space-y-3">
           <button
@@ -440,14 +446,13 @@ function AddChoiceModal({
           </button>
         </div>
 
-        <button
-          onClick={onClose}
-          className="w-full mt-6 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
-        >
-          İptal
-        </button>
-      </div>
-    </div>
+        <DialogFooter className="mt-2">
+          <Button variant="outline" className="w-full" onClick={onClose}>
+            İptal
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -511,10 +516,12 @@ function ReferenceModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto text-gray-900">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Başka Anaveri Bağla</h2>
-        <p className="text-gray-500 mb-6">
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto text-gray-900">
+        <DialogHeader>
+          <DialogTitle>Başka Anaveri Bağla</DialogTitle>
+        </DialogHeader>
+        <p className="text-gray-500 mb-4">
           Bağlamak istediğiniz anaveriyi seçin
         </p>
 
@@ -525,20 +532,19 @@ function ReferenceModal({
 
           {/* Entity Selection as Cards */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Anaveri Seçin *
-            </label>
+            <Label className="mb-3 block">Anaveri Seçin *</Label>
             <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto">
               {entities.map((ent) => (
                 <button
                   key={ent.id}
                   type="button"
                   onClick={() => setSelectedEntityId(ent.id)}
-                  className={`p-3 border-2 rounded-lg text-left transition ${
+                  className={cn(
+                    "p-3 border-2 rounded-lg text-left transition",
                     selectedEntityId === ent.id
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-200 hover:border-gray-300'
-                  }`}
+                  )}
                 >
                   <p className="font-medium text-gray-900">{ent.default_name}</p>
                   <p className="text-xs text-gray-500">{ent.code}</p>
@@ -556,74 +562,58 @@ function ReferenceModal({
           </div>
 
           {selectedEntityId && (
-            <>
-              <div className="space-y-4 border-t border-gray-200 pt-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Alan Kodu *
-                  </label>
-                  <input
-                    type="text"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                    placeholder="Örn: COUNTRY"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Bu alan için kullanılacak benzersiz kod
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Alan Etiketi *
-                  </label>
-                  <input
-                    type="text"
-                    value={label}
-                    onChange={(e) => setLabel(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
-                    placeholder="Örn: Ülke"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Formda görünecek alan adı
-                  </p>
-                </div>
-
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={isRequired}
-                    onChange={(e) => setIsRequired(e.target.checked)}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="text-sm">Bu alan zorunlu olsun</span>
-                </label>
+            <div className="space-y-4 border-t border-gray-200 pt-4">
+              <div>
+                <Label>Alan Kodu *</Label>
+                <Input
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  required
+                  className="mt-1 bg-white text-gray-900"
+                  placeholder="Örn: COUNTRY"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Bu alan için kullanılacak benzersiz kod
+                </p>
               </div>
-            </>
+
+              <div>
+                <Label>Alan Etiketi *</Label>
+                <Input
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  required
+                  className="mt-1 bg-white text-gray-900"
+                  placeholder="Örn: Ülke"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Formda görünecek alan adı
+                </p>
+              </div>
+
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={isRequired}
+                  onChange={(e) => setIsRequired(e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm">Bu alan zorunlu olsun</span>
+              </label>
+            </div>
           )}
 
-          <div className="flex gap-3 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-            >
+          <DialogFooter className="mt-6">
+            <Button variant="outline" type="button" onClick={onClose}>
               İptal
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !selectedEntityId}
-              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading || !selectedEntityId} className="bg-green-600 hover:bg-green-700">
               {loading ? 'Ekleniyor...' : 'Bağla'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -696,11 +686,11 @@ function AttributeModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto text-gray-900">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
-          {attribute ? 'Alan Düzenle' : 'Yeni Alan'}
-        </h2>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto text-gray-900">
+        <DialogHeader>
+          <DialogTitle>{attribute ? 'Alan Düzenle' : 'Yeni Alan'}</DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           {error && (
@@ -709,35 +699,33 @@ function AttributeModal({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kod *</label>
-              <input
-                type="text"
+              <Label>Kod *</Label>
+              <Input
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 required
                 disabled={!!attribute}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 bg-white text-gray-900"
+                className="mt-1 bg-white text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Etiket *</label>
-              <input
-                type="text"
+              <Label>Etiket *</Label>
+              <Input
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                className="mt-1 bg-white text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Veri Tipi *</label>
+              <Label>Veri Tipi *</Label>
               <select
                 value={dataType}
                 onChange={(e) => setDataType(e.target.value as AttributeType)}
                 disabled={!!attribute}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 bg-white text-gray-900"
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg disabled:bg-gray-100 bg-white text-gray-900"
               >
                 {DATA_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -749,30 +737,22 @@ function AttributeModal({
 
             {dataType === 'list' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seçenekler</label>
-                <div className="flex gap-2 mb-2">
-                  <input
-                    type="text"
+                <Label>Seçenekler</Label>
+                <div className="flex gap-2 mb-2 mt-1">
+                  <Input
                     value={newOption}
                     onChange={(e) => setNewOption(e.target.value)}
                     placeholder="Yeni seçenek"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                    className="flex-1 bg-white text-gray-900"
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
                   />
-                  <button
-                    type="button"
-                    onClick={handleAddOption}
-                    className="px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-gray-700"
-                  >
+                  <Button variant="secondary" type="button" onClick={handleAddOption}>
                     Ekle
-                  </button>
+                  </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {options.map((opt) => (
-                    <span
-                      key={opt}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
-                    >
+                    <Badge key={opt} variant="info" className="gap-1">
                       {opt}
                       <button
                         type="button"
@@ -781,7 +761,7 @@ function AttributeModal({
                       >
                         <X size={14} />
                       </button>
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -789,14 +769,12 @@ function AttributeModal({
 
             {dataType === 'reference' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Referans Anaveri *
-                </label>
+                <Label>Referans Anaveri *</Label>
                 <select
                   value={referenceEntityId || ''}
                   onChange={(e) => setReferenceEntityId(Number(e.target.value))}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
                 >
                   <option value="">Seçiniz</option>
                   {entities.map((e) => (
@@ -830,24 +808,16 @@ function AttributeModal({
             </div>
           </div>
 
-          <div className="flex gap-3 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-            >
+          <DialogFooter className="mt-6">
+            <Button variant="outline" type="button" onClick={onClose}>
               İptal
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading}>
               {loading ? 'Kaydediliyor...' : 'Kaydet'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

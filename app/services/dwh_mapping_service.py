@@ -1,173 +1,119 @@
 """
-Data Mapping Service - Staging -> Hedef Tablo Aktarim Servisi
+DWH Mapping Service - DWH -> Hedef Sistem Esleme Servisi
 
-Staging tablolarindaki verileri MasterData, sistem verileri
-(versiyon/donem/parametre) ve butce girisleri tablolarina aktarir.
+DWH tablolarindaki verileri MasterData, SystemData (versiyon/donem/parametre)
+ve BudgetEntry tablolarina aktarir.
 """
 
-import json
 import logging
-import uuid as uuid_lib
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import text, func
+from sqlalchemy import text
 
-from app.models.data_connection import (
-    DataConnectionMapping, DataConnectionFieldMapping
-)
+from app.models.dwh import DwhMapping, DwhFieldMapping, DwhTable
 from app.models.dynamic.master_data import MasterData
 from app.models.dynamic.master_data_value import MasterDataValue
 from app.models.dynamic.meta_attribute import MetaAttribute
 from app.models.system_data import (
-    BudgetVersion, BudgetPeriod, BudgetParameter, ParameterVersion, ParameterValueType
+    BudgetVersion, BudgetPeriod, BudgetParameter, ParameterVersion
 )
 from app.models.budget_entry import (
     BudgetDefinition, BudgetDefinitionDimension, BudgetEntryRow, BudgetEntryCell,
     BudgetCellType
 )
-from app.schemas.data_connection import MappingExecutionResult, MappingPreviewResponse
+from app.schemas.dwh import DwhMappingExecutionResult, DwhMappingPreview
 
 logger = logging.getLogger(__name__)
 
 
-class DataMappingService:
-    """Staging -> hedef tablo aktarim islemlerini yoneten sinif."""
-
-    # ============ Ana Dispatcher ============
+class DwhMappingService:
+    """DWH -> hedef sistem esleme servisi."""
 
     @staticmethod
     def execute_mapping(
         db: Session,
-        mapping: DataConnectionMapping,
+        mapping: DwhMapping,
         triggered_by: str
-    ) -> MappingExecutionResult:
+    ) -> DwhMappingExecutionResult:
         """
-        Staging tablosundan hedef tabloya veri aktarimi yapar.
+        DWH tablosundan hedef sisteme veri aktarimi yapar.
         target_type'a gore ilgili handler'a yonlendirir.
         """
-        target_type = mapping.target_type.value if hasattr(mapping.target_type, 'value') else str(mapping.target_type)
+        target_type = mapping.target_type
+        if hasattr(target_type, 'value'):
+            target_type = target_type.value
 
         handler_map = {
-            "master_data": DataMappingService._execute_master_data_mapping,
-            "system_version": DataMappingService._execute_system_version_mapping,
-            "system_period": DataMappingService._execute_system_period_mapping,
-            "system_parameter": DataMappingService._execute_system_parameter_mapping,
-            "budget_entry": DataMappingService._execute_budget_entry_mapping,
+            "master_data": DwhMappingService._execute_master_data_mapping,
+            "system_version": DwhMappingService._execute_system_version_mapping,
+            "system_period": DwhMappingService._execute_system_period_mapping,
+            "system_parameter": DwhMappingService._execute_system_parameter_mapping,
+            "budget_entry": DwhMappingService._execute_budget_entry_mapping,
         }
 
         handler = handler_map.get(target_type)
         if not handler:
-            return MappingExecutionResult(
+            return DwhMappingExecutionResult(
                 success=False,
-                message=f"'{target_type}' hedef tipi desteklenmiyor.",
-                processed=0, inserted=0, updated=0, errors=0
+                message=f"'{target_type}' hedef tipi desteklenmiyor."
             )
 
         try:
             return handler(db, mapping)
         except Exception as e:
-            logger.error(f"Staging mapping hatasi ({target_type}): {e}")
-            return MappingExecutionResult(
+            logger.error(f"DWH mapping hatasi ({target_type}): {e}")
+            return DwhMappingExecutionResult(
                 success=False,
                 message=f"Esleme hatasi: {str(e)[:500]}",
-                processed=0, inserted=0, updated=0, errors=0,
                 error_details=[str(e)]
             )
 
-    # ============ Helpers ============
-
-    @staticmethod
-    def _read_staging_data(db: Session, mapping: DataConnectionMapping) -> List[Dict]:
-        """Staging tablosundan tum veriyi dict listesi olarak okur."""
-        query = mapping.query
-        table_name = query.staging_table_name
-        result = db.execute(text(f'SELECT * FROM "{table_name}" ORDER BY _staging_id'))
-        col_names = list(result.keys())
-        raw_rows = result.fetchall()
-
-        rows = []
-        for raw_row in raw_rows:
-            row = {}
-            for i, col_name in enumerate(col_names):
-                row[col_name] = raw_row[i]
-            rows.append(row)
-        return rows
-
-    @staticmethod
-    def _apply_field_transforms(
-        row: Dict,
-        field_mappings: List[DataConnectionFieldMapping]
-    ) -> Dict:
-        """Tum field mapping'ler icin transform uygular."""
-        transformed = {}
-        for fm in field_mappings:
-            source_val = row.get(fm.source_column)
-            transformed[fm.target_field] = DataMappingService.apply_transform(
-                source_val, fm.transform_type, fm.transform_config
-            )
-        return transformed
-
-    @staticmethod
-    def _validate_staging(mapping: DataConnectionMapping) -> Optional[MappingExecutionResult]:
-        """Staging tablo ve field mapping'leri dogrular. Hata varsa result doner, yoksa None."""
-        query = mapping.query
-        if not query or not query.staging_table_name or not query.staging_table_created:
-            return MappingExecutionResult(
-                success=False, message="Staging tablosu bulunamadi veya olusturulmamis.",
-                processed=0, inserted=0, updated=0, errors=0
-            )
-
-        field_mappings = mapping.field_mappings
-        if not field_mappings:
-            return MappingExecutionResult(
-                success=False, message="Alan eslestirmeleri (field_mappings) bos.",
-                processed=0, inserted=0, updated=0, errors=0
-            )
-
-        return None
-
-    # ============ Target Handler: master_data ============
+    # ============ Target Handlers ============
 
     @staticmethod
     def _execute_master_data_mapping(
         db: Session,
-        mapping: DataConnectionMapping
-    ) -> MappingExecutionResult:
+        mapping: DwhMapping
+    ) -> DwhMappingExecutionResult:
         """
-        Staging -> MasterData + MasterDataValue aktarimi.
-        Upsert: is_key_field ile eslestir, varsa guncelle, yoksa olustur.
+        DWH -> MasterData + MasterDataValue upsert.
+        DataMappingService pattern'ini takip eder, kaynak DWH tablosu.
+        target_field: code, name, attr:{attribute_code}
         """
-        validation = DataMappingService._validate_staging(mapping)
-        if validation:
-            return validation
+        dwh_table = mapping.dwh_table
+        if not dwh_table or not dwh_table.table_created:
+            return DwhMappingExecutionResult(
+                success=False, message="DWH tablosu bulunamadi veya olusturulmamis."
+            )
 
         target_entity_id = mapping.target_entity_id
         if not target_entity_id:
-            return MappingExecutionResult(
-                success=False, message="Hedef entity (target_entity_id) belirtilmemis.",
-                processed=0, inserted=0, updated=0, errors=0
+            return DwhMappingExecutionResult(
+                success=False, message="Hedef entity (target_entity_id) belirtilmemis."
             )
 
         field_mappings = mapping.field_mappings
-
-        # Key field bul (genellikle code)
-        key_fields = [fm for fm in field_mappings if fm.is_key_field]
-        if not key_fields:
-            return MappingExecutionResult(
-                success=False, message="Anahtar alan (is_key_field) tanimlanmamis.",
-                processed=0, inserted=0, updated=0, errors=0
+        if not field_mappings:
+            return DwhMappingExecutionResult(
+                success=False, message="Alan eslestirmeleri bos."
             )
 
-        # Entity'nin attribute'larini yukle
+        key_fields = [fm for fm in field_mappings if fm.is_key_field]
+        if not key_fields:
+            return DwhMappingExecutionResult(
+                success=False, message="Anahtar alan (is_key_field) tanimlanmamis."
+            )
+
+        # Entity attribute'larini yukle
         attributes = db.query(MetaAttribute).filter(
             MetaAttribute.entity_id == target_entity_id
         ).all()
         attr_map = {a.code: a for a in attributes}
 
-        # Staging'den tum veriyi oku
-        rows_data = DataMappingService._read_staging_data(db, mapping)
+        # DWH'dan veri oku
+        rows_data = DwhMappingService._read_dwh_data(db, dwh_table)
 
         processed = 0
         inserted = 0
@@ -178,24 +124,21 @@ class DataMappingService:
         for row in rows_data:
             processed += 1
             try:
-                # Transform uygula ve degerleri hazirla
-                transformed = DataMappingService._apply_field_transforms(row, field_mappings)
+                transformed = DwhMappingService._apply_field_transforms(row, field_mappings)
 
-                # Key deger
                 code_value = None
                 name_value = None
                 attribute_values = {}
 
                 for fm in field_mappings:
                     target = fm.target_field.lower()
-                    val = transformed[fm.target_field]
+                    val = transformed.get(fm.target_field)
 
                     if target == "code":
                         code_value = val
                     elif target == "name":
                         name_value = val
                     else:
-                        # Attribute olarak isle — "attr:" prefix'ini temizle
                         attr_key = fm.target_field
                         if attr_key.startswith("attr:"):
                             attr_key = attr_key[5:]
@@ -206,18 +149,15 @@ class DataMappingService:
                     error_details.append(f"Satir {processed}: code degeri bos.")
                     continue
 
-                # Mevcut kaydi ara (code ile)
+                # Upsert
                 existing = db.query(MasterData).filter(
                     MasterData.entity_id == target_entity_id,
                     MasterData.code == str(code_value)
                 ).first()
 
                 if existing:
-                    # Guncelle
                     if name_value:
                         existing.name = str(name_value)
-
-                    # Attribute degerlerini guncelle
                     for attr_code, attr_val in attribute_values.items():
                         attr = attr_map.get(attr_code.upper()) or attr_map.get(attr_code)
                         if attr:
@@ -228,73 +168,65 @@ class DataMappingService:
                             if existing_val:
                                 existing_val.value = str(attr_val) if attr_val is not None else None
                             else:
-                                new_val = MasterDataValue(
+                                db.add(MasterDataValue(
                                     master_data_id=existing.id,
                                     attribute_id=attr.id,
                                     value=str(attr_val) if attr_val is not None else None
-                                )
-                                db.add(new_val)
-
+                                ))
                     updated += 1
                 else:
-                    # Yeni kayit olustur
                     new_record = MasterData(
                         entity_id=target_entity_id,
                         code=str(code_value),
                         name=str(name_value) if name_value else str(code_value)
                     )
                     db.add(new_record)
-                    db.flush()  # ID almak icin
-
-                    # Attribute degerlerini ekle
+                    db.flush()
                     for attr_code, attr_val in attribute_values.items():
                         attr = attr_map.get(attr_code.upper()) or attr_map.get(attr_code)
                         if attr:
-                            new_val = MasterDataValue(
+                            db.add(MasterDataValue(
                                 master_data_id=new_record.id,
                                 attribute_id=attr.id,
                                 value=str(attr_val) if attr_val is not None else None
-                            )
-                            db.add(new_val)
-
+                            ))
                     inserted += 1
 
             except Exception as e:
                 errors += 1
                 error_details.append(f"Satir {processed}: {str(e)[:200]}")
                 if errors > 100:
-                    error_details.append("... 100'den fazla hata, islem durduruluyor.")
+                    error_details.append("100'den fazla hata, islem durduruluyor.")
                     break
 
         db.commit()
-
-        return MappingExecutionResult(
+        return DwhMappingExecutionResult(
             success=errors == 0,
             message=f"Aktarim tamamlandi: {inserted} yeni, {updated} guncellenen, {errors} hata.",
-            processed=processed,
-            inserted=inserted,
-            updated=updated,
-            errors=errors,
-            error_details=error_details[:50]  # Max 50 hata detayi
+            processed=processed, inserted=inserted, updated=updated, errors=errors,
+            error_details=error_details[:50]
         )
-
-    # ============ Target Handler: system_version ============
 
     @staticmethod
     def _execute_system_version_mapping(
         db: Session,
-        mapping: DataConnectionMapping
-    ) -> MappingExecutionResult:
+        mapping: DwhMapping
+    ) -> DwhMappingExecutionResult:
         """
-        Staging -> BudgetVersion upsert.
+        DWH -> BudgetVersion upsert.
         target_field: code (key), name, description, is_active
         """
-        validation = DataMappingService._validate_staging(mapping)
-        if validation:
-            return validation
+        dwh_table = mapping.dwh_table
+        if not dwh_table or not dwh_table.table_created:
+            return DwhMappingExecutionResult(
+                success=False, message="DWH tablosu bulunamadi veya olusturulmamis."
+            )
 
-        rows_data = DataMappingService._read_staging_data(db, mapping)
         field_mappings = mapping.field_mappings
+        if not field_mappings:
+            return DwhMappingExecutionResult(success=False, message="Alan eslestirmeleri bos.")
+
+        rows_data = DwhMappingService._read_dwh_data(db, dwh_table)
 
         processed = 0
         inserted = 0
@@ -305,7 +237,7 @@ class DataMappingService:
         for row in rows_data:
             processed += 1
             try:
-                transformed = DataMappingService._apply_field_transforms(row, field_mappings)
+                transformed = DwhMappingService._apply_field_transforms(row, field_mappings)
 
                 code_value = transformed.get("code")
                 if not code_value:
@@ -326,6 +258,7 @@ class DataMappingService:
                         existing.is_active = str(transformed["is_active"]).lower() in ("true", "1", "yes", "evet")
                     updated += 1
                 else:
+                    import uuid as uuid_lib
                     new_version = BudgetVersion(
                         uuid=uuid_lib.uuid4(),
                         code=str(code_value),
@@ -343,31 +276,34 @@ class DataMappingService:
                     break
 
         db.commit()
-        return MappingExecutionResult(
+        return DwhMappingExecutionResult(
             success=errors == 0,
             message=f"Versiyon aktarimi: {inserted} yeni, {updated} guncellenen, {errors} hata.",
             processed=processed, inserted=inserted, updated=updated, errors=errors,
             error_details=error_details[:50]
         )
 
-    # ============ Target Handler: system_period ============
-
     @staticmethod
     def _execute_system_period_mapping(
         db: Session,
-        mapping: DataConnectionMapping
-    ) -> MappingExecutionResult:
+        mapping: DwhMapping
+    ) -> DwhMappingExecutionResult:
         """
-        Staging -> BudgetPeriod upsert.
+        DWH -> BudgetPeriod upsert.
         target_field: code (key, format: yyyy-MM), name (opsiyonel, auto generate)
         Auto: year/month/quarter code'dan cikarilir.
         """
-        validation = DataMappingService._validate_staging(mapping)
-        if validation:
-            return validation
+        dwh_table = mapping.dwh_table
+        if not dwh_table or not dwh_table.table_created:
+            return DwhMappingExecutionResult(
+                success=False, message="DWH tablosu bulunamadi veya olusturulmamis."
+            )
 
-        rows_data = DataMappingService._read_staging_data(db, mapping)
         field_mappings = mapping.field_mappings
+        if not field_mappings:
+            return DwhMappingExecutionResult(success=False, message="Alan eslestirmeleri bos.")
+
+        rows_data = DwhMappingService._read_dwh_data(db, dwh_table)
 
         processed = 0
         inserted = 0
@@ -378,7 +314,7 @@ class DataMappingService:
         for row in rows_data:
             processed += 1
             try:
-                transformed = DataMappingService._apply_field_transforms(row, field_mappings)
+                transformed = DwhMappingService._apply_field_transforms(row, field_mappings)
 
                 code_value = transformed.get("code")
                 if not code_value:
@@ -411,6 +347,7 @@ class DataMappingService:
                     existing.quarter = quarter
                     updated += 1
                 else:
+                    import uuid as uuid_lib
                     new_period = BudgetPeriod(
                         uuid=uuid_lib.uuid4(),
                         code=code_str,
@@ -430,36 +367,39 @@ class DataMappingService:
                     break
 
         db.commit()
-        return MappingExecutionResult(
+        return DwhMappingExecutionResult(
             success=errors == 0,
             message=f"Donem aktarimi: {inserted} yeni, {updated} guncellenen, {errors} hata.",
             processed=processed, inserted=inserted, updated=updated, errors=errors,
             error_details=error_details[:50]
         )
 
-    # ============ Target Handler: system_parameter ============
-
     @staticmethod
     def _execute_system_parameter_mapping(
         db: Session,
-        mapping: DataConnectionMapping
-    ) -> MappingExecutionResult:
+        mapping: DwhMapping
+    ) -> DwhMappingExecutionResult:
         """
-        Staging -> BudgetParameter + ParameterVersion upsert.
+        DWH -> BudgetParameter + ParameterVersion upsert.
         target_field: code (key), name, value_type, version_code, value
         version_code -> BudgetVersion.id cozumlenir.
         ParameterVersion upsert: (parameter_id, version_id) bazli.
         """
-        validation = DataMappingService._validate_staging(mapping)
-        if validation:
-            return validation
+        dwh_table = mapping.dwh_table
+        if not dwh_table or not dwh_table.table_created:
+            return DwhMappingExecutionResult(
+                success=False, message="DWH tablosu bulunamadi veya olusturulmamis."
+            )
+
+        field_mappings = mapping.field_mappings
+        if not field_mappings:
+            return DwhMappingExecutionResult(success=False, message="Alan eslestirmeleri bos.")
 
         # Versiyon cache'i
         versions = db.query(BudgetVersion).all()
         version_map = {v.code: v for v in versions}
 
-        rows_data = DataMappingService._read_staging_data(db, mapping)
-        field_mappings = mapping.field_mappings
+        rows_data = DwhMappingService._read_dwh_data(db, dwh_table)
 
         processed = 0
         inserted = 0
@@ -470,7 +410,7 @@ class DataMappingService:
         for row in rows_data:
             processed += 1
             try:
-                transformed = DataMappingService._apply_field_transforms(row, field_mappings)
+                transformed = DwhMappingService._apply_field_transforms(row, field_mappings)
 
                 code_value = transformed.get("code")
                 if not code_value:
@@ -491,6 +431,8 @@ class DataMappingService:
                     param = existing_param
                     updated += 1
                 else:
+                    import uuid as uuid_lib
+                    from app.models.system_data import ParameterValueType
                     value_type_str = str(transformed.get("value_type", "sayi")).lower()
                     # value_type enum cozumle
                     vt = ParameterValueType.sayi
@@ -543,49 +485,49 @@ class DataMappingService:
                     break
 
         db.commit()
-        return MappingExecutionResult(
+        return DwhMappingExecutionResult(
             success=errors == 0,
             message=f"Parametre aktarimi: {inserted} yeni, {updated} guncellenen, {errors} hata.",
             processed=processed, inserted=inserted, updated=updated, errors=errors,
             error_details=error_details[:50]
         )
 
-    # ============ Target Handler: budget_entry ============
-
     @staticmethod
     def _execute_budget_entry_mapping(
         db: Session,
-        mapping: DataConnectionMapping
-    ) -> MappingExecutionResult:
+        mapping: DwhMapping
+    ) -> DwhMappingExecutionResult:
         """
-        Staging -> BudgetEntryRow + BudgetEntryCell upsert (en karmasik).
+        DWH -> BudgetEntryRow + BudgetEntryCell upsert (en karmasik).
         target_field convention'lari:
           - dim:{entity_id} -> MasterData code -> dimension_values JSONB
           - period -> BudgetPeriod code (yyyy-MM) -> period_id
           - measure:{measure_code} -> Olcu degeri (numeric)
           - currency -> Para birimi kodu
         """
-        validation = DataMappingService._validate_staging(mapping)
-        if validation:
-            return validation
+        dwh_table = mapping.dwh_table
+        if not dwh_table or not dwh_table.table_created:
+            return DwhMappingExecutionResult(
+                success=False, message="DWH tablosu bulunamadi veya olusturulmamis."
+            )
 
         definition_id = mapping.target_definition_id
         if not definition_id:
-            return MappingExecutionResult(
-                success=False, message="Hedef BudgetDefinition (target_definition_id) belirtilmemis.",
-                processed=0, inserted=0, updated=0, errors=0
+            return DwhMappingExecutionResult(
+                success=False, message="Hedef BudgetDefinition (target_definition_id) belirtilmemis."
             )
 
         definition = db.query(BudgetDefinition).filter(
             BudgetDefinition.id == definition_id
         ).first()
         if not definition:
-            return MappingExecutionResult(
-                success=False, message=f"BudgetDefinition bulunamadi: {definition_id}",
-                processed=0, inserted=0, updated=0, errors=0
+            return DwhMappingExecutionResult(
+                success=False, message=f"BudgetDefinition bulunamadi: {definition_id}"
             )
 
         field_mappings = mapping.field_mappings
+        if not field_mappings:
+            return DwhMappingExecutionResult(success=False, message="Alan eslestirmeleri bos.")
 
         # Cache'ler
         # Period cache: code -> id
@@ -609,7 +551,7 @@ class DataMappingService:
             for r in records:
                 md_cache[(eid, r.code)] = r.id
 
-        rows_data = DataMappingService._read_staging_data(db, mapping)
+        rows_data = DwhMappingService._read_dwh_data(db, dwh_table)
 
         processed = 0
         inserted = 0
@@ -620,7 +562,7 @@ class DataMappingService:
         for row in rows_data:
             processed += 1
             try:
-                transformed = DataMappingService._apply_field_transforms(row, field_mappings)
+                transformed = DwhMappingService._apply_field_transforms(row, field_mappings)
 
                 # 1. Dimension values cozumle
                 dimension_values = {}
@@ -676,6 +618,7 @@ class DataMappingService:
                     continue
 
                 # 2. BudgetEntryRow bul/olustur (dimension_values JSONB esitligi)
+                import json
                 dim_json = json.dumps(dimension_values, sort_keys=True)
 
                 # JSONB equality icin cast ile karsilastir
@@ -695,6 +638,7 @@ class DataMappingService:
                     if currency_code:
                         entry_row.currency_code = currency_code
                 else:
+                    import uuid as uuid_lib
                     entry_row = BudgetEntryRow(
                         uuid=uuid_lib.uuid4(),
                         budget_definition_id=definition_id,
@@ -734,7 +678,7 @@ class DataMappingService:
                     break
 
         db.commit()
-        return MappingExecutionResult(
+        return DwhMappingExecutionResult(
             success=errors == 0,
             message=f"Butce girisi aktarimi: {inserted} yeni, {updated} guncellenen, {errors} hata.",
             processed=processed, inserted=inserted, updated=updated, errors=errors,
@@ -746,36 +690,37 @@ class DataMappingService:
     @staticmethod
     def preview_mapping(
         db: Session,
-        mapping: DataConnectionMapping,
+        mapping: DwhMapping,
         limit: int = 20
-    ) -> MappingPreviewResponse:
+    ) -> DwhMappingPreview:
         """
-        Mapping sonucunu dry-run olarak gosterir (DB'ye yazmaz).
-        Staging'den veri okur, transform uygular, sonucu dondurur.
+        Esleme onizleme: DWH verisini transform edip gosterir (DB'ye yazmaz).
         """
-        query = mapping.query
-        if not query or not query.staging_table_name or not query.staging_table_created:
-            return MappingPreviewResponse(columns=[], rows=[], total=0, target_info=None)
+        dwh_table = mapping.dwh_table
+        if not dwh_table or not dwh_table.table_created:
+            return DwhMappingPreview(columns=[], rows=[], total=0)
 
         field_mappings = mapping.field_mappings
         if not field_mappings:
-            return MappingPreviewResponse(columns=[], rows=[], total=0, target_info=None)
+            return DwhMappingPreview(columns=[], rows=[], total=0)
 
-        # Staging'den veri oku
-        table_name = query.staging_table_name
+        # DWH'dan veri oku (limitli)
+        table_name = dwh_table.table_name
         count_result = db.execute(text(f'SELECT COUNT(*) FROM "{table_name}"'))
         total = count_result.scalar() or 0
 
         result = db.execute(
-            text(f'SELECT * FROM "{table_name}" ORDER BY _staging_id LIMIT :lim'),
+            text(f'SELECT * FROM "{table_name}" ORDER BY "_dwh_id" LIMIT :lim'),
             {"lim": limit}
         )
         col_names = list(result.keys())
         raw_rows = result.fetchall()
 
-        # Transform uygula — "attr:" prefix'ini temizle
+        # Transform uygula
         def clean_target(t: str) -> str:
-            return t[5:] if t.startswith("attr:") else t
+            if t.startswith("attr:"):
+                return t[5:]
+            return t
 
         preview_columns = [clean_target(fm.target_field) for fm in field_mappings]
         preview_rows = []
@@ -788,30 +733,56 @@ class DataMappingService:
             preview_row = {}
             for fm in field_mappings:
                 source_val = row.get(fm.source_column)
-                preview_row[clean_target(fm.target_field)] = DataMappingService.apply_transform(
+                preview_row[clean_target(fm.target_field)] = DwhMappingService._apply_transform(
                     source_val, fm.transform_type, fm.transform_config
                 )
             preview_rows.append(preview_row)
 
-        target_type = mapping.target_type.value if hasattr(mapping.target_type, 'value') else str(mapping.target_type)
-        target_info = {
-            "target_type": target_type,
-            "target_entity_id": mapping.target_entity_id,
-            "target_definition_id": mapping.target_definition_id,
-            "target_version_id": mapping.target_version_id,
-        }
+        target_type = mapping.target_type
+        if hasattr(target_type, 'value'):
+            target_type = target_type.value
 
-        return MappingPreviewResponse(
+        return DwhMappingPreview(
             columns=preview_columns,
             rows=preview_rows,
             total=total,
-            target_info=target_info
+            target_info=f"{target_type} (entity_id={mapping.target_entity_id})"
         )
 
-    # ============ Transform ============
+    # ============ Helpers ============
 
     @staticmethod
-    def apply_transform(value: Any, transform_type: Optional[str], transform_config: Optional[dict]) -> Any:
+    def _read_dwh_data(db: Session, dwh_table: DwhTable) -> List[Dict]:
+        """DWH tablosundan tum veriyi dict listesi olarak okur."""
+        table_name = dwh_table.table_name
+        result = db.execute(text(f'SELECT * FROM "{table_name}" ORDER BY "_dwh_id"'))
+        col_names = list(result.keys())
+        raw_rows = result.fetchall()
+
+        rows = []
+        for raw_row in raw_rows:
+            row = {}
+            for i, col_name in enumerate(col_names):
+                row[col_name] = raw_row[i]
+            rows.append(row)
+        return rows
+
+    @staticmethod
+    def _apply_field_transforms(
+        row: Dict,
+        field_mappings: List[DwhFieldMapping]
+    ) -> Dict:
+        """Tum field mapping'ler icin transform uygular."""
+        transformed = {}
+        for fm in field_mappings:
+            source_val = row.get(fm.source_column)
+            transformed[fm.target_field] = DwhMappingService._apply_transform(
+                source_val, fm.transform_type, fm.transform_config
+            )
+        return transformed
+
+    @staticmethod
+    def _apply_transform(value: Any, transform_type: Optional[str], transform_config: Optional[dict]) -> Any:
         """Tek bir deger uzerine transform uygular."""
         if value is None:
             return None
@@ -828,7 +799,6 @@ class DataMappingService:
         elif t == "trim":
             return val_str.strip()
         elif t == "format_date":
-            # Tarih format donusumu
             if transform_config:
                 from_format = transform_config.get("from_format", "%Y-%m-%d")
                 to_format = transform_config.get("to_format", "%Y-%m-%d")
@@ -839,7 +809,6 @@ class DataMappingService:
                     return val_str
             return val_str
         elif t == "lookup":
-            # Gelecekte: baska bir tablodan deger cekme
             return val_str
         else:
             return val_str

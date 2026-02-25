@@ -279,6 +279,8 @@ class DataConnectionFieldMappingResponse(BaseModel):
 class DataConnectionMappingCreate(BaseModel):
     target_type: str = Field(..., description="master_data, system_version, system_period, system_parameter, budget_entry")
     target_entity_id: Optional[int] = None
+    target_definition_id: Optional[int] = None
+    target_version_id: Optional[int] = None
     name: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=500)
     is_active: bool = True
@@ -287,6 +289,8 @@ class DataConnectionMappingCreate(BaseModel):
 class DataConnectionMappingUpdate(BaseModel):
     target_type: Optional[str] = None
     target_entity_id: Optional[int] = None
+    target_definition_id: Optional[int] = None
+    target_version_id: Optional[int] = None
     name: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=500)
     is_active: Optional[bool] = None
@@ -298,6 +302,8 @@ class DataConnectionMappingResponse(BaseModel):
     query_id: int
     target_type: str
     target_entity_id: Optional[int] = None
+    target_definition_id: Optional[int] = None
+    target_version_id: Optional[int] = None
     name: str
     description: Optional[str] = None
     is_active: bool

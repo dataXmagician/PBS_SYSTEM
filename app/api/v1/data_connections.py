@@ -713,6 +713,8 @@ async def create_mapping(
         query_id=query_id,
         target_type=data.target_type,
         target_entity_id=data.target_entity_id,
+        target_definition_id=data.target_definition_id,
+        target_version_id=data.target_version_id,
         name=data.name,
         description=data.description,
         is_active=data.is_active,

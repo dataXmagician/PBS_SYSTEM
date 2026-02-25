@@ -4,10 +4,27 @@ import {
   Play, Eye, Columns, Trash2, Edit, RefreshCw, CheckCircle,
   XCircle, Clock, AlertTriangle, ChevronDown, ChevronRight,
   Upload, ArrowRight, Zap, History, Settings2, Loader2,
-  Link2, Target, ArrowRightLeft, SquareFunction
+  Link2, Target, ArrowRightLeft, SquareFunction, Warehouse
 } from 'lucide-react';
 import { dataConnectionApi } from '../services/dataConnectionApi';
 import { metaEntitiesApi, metaAttributesApi } from '../services/masterDataApi';
+import DwhPanel from './DwhPanel';
+
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import {
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow,
+} from '@/components/ui/table';
 
 // ============ Local Interfaces ============
 
@@ -158,7 +175,7 @@ export function DataConnectionsPage() {
   const [selectedConn, setSelectedConn] = useState<DataConnection | null>(null);
   const [queries, setQueries] = useState<DataConnectionQuery[]>([]);
   const [syncLogs, setSyncLogs] = useState<DataSyncLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'queries' | 'mappings' | 'history'>('queries');
+  const [activeTab, setActiveTab] = useState<'queries' | 'dwh' | 'mappings' | 'history'>('queries');
 
   // Modal states
   const [showConnModal, setShowConnModal] = useState(false);
@@ -327,30 +344,23 @@ export function DataConnectionsPage() {
       <div className="w-80 border-r border-gray-200 bg-white flex flex-col">
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center gap-2 mb-3">
-            <Cable size={20} className="text-blue-600" />
+            <Cable className="h-5 w-5 text-primary" />
             <h3 className="font-semibold text-gray-900">Bağlantılar</h3>
-            <span className="ml-auto text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-              {connections.length}
-            </span>
+            <Badge variant="secondary" className="ml-auto">{connections.length}</Badge>
           </div>
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Search size={16} className="absolute left-2.5 top-2.5 text-gray-400" />
-              <input
-                type="text"
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
                 placeholder="Ara..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-blue-500"
+                className="pl-8"
               />
             </div>
-            <button
-              onClick={() => { setEditingConn(null); setShowConnModal(true); }}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-              title="Yeni Bağlantı"
-            >
-              <Plus size={16} />
-            </button>
+            <Button size="icon" onClick={() => { setEditingConn(null); setShowConnModal(true); }} title="Yeni Bağlantı">
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
@@ -430,70 +440,44 @@ export function DataConnectionsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleTestConn(selectedConn)}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"
-                  >
-                    <Zap size={14} /> Test
-                  </button>
-                  <button
-                    onClick={() => { setEditingConn(selectedConn); setShowConnModal(true); }}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"
-                  >
-                    <Edit size={14} /> Düzenle
-                  </button>
-                  <button
-                    onClick={() => handleDeleteConn(selectedConn)}
-                    className="px-3 py-1.5 text-sm border border-red-300 rounded-lg text-red-600 hover:bg-red-50 flex items-center gap-1.5"
-                  >
-                    <Trash2 size={14} /> Sil
-                  </button>
+                  <Button variant="outline" size="sm" onClick={() => handleTestConn(selectedConn)}>
+                    <Zap className="h-3.5 w-3.5 mr-1.5" /> Test
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingConn(selectedConn); setShowConnModal(true); }}>
+                    <Edit className="h-3.5 w-3.5 mr-1.5" /> Düzenle
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDeleteConn(selectedConn)}>
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Sil
+                  </Button>
                 </div>
               </div>
             </div>
 
             {/* Tabs */}
-            <div className="bg-white border-b border-gray-200 px-6">
-              <div className="flex gap-6">
-                <button
-                  onClick={() => setActiveTab('queries')}
-                  className={`py-3 text-sm font-medium border-b-2 transition ${
-                    activeTab === 'queries'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Settings2 size={14} className="inline mr-1.5" />
-                  Sorgular ({queries.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab('mappings')}
-                  className={`py-3 text-sm font-medium border-b-2 transition ${
-                    activeTab === 'mappings'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Link2 size={14} className="inline mr-1.5" />
-                  Eşlemeler
-                </button>
-                <button
-                  onClick={() => setActiveTab('history')}
-                  className={`py-3 text-sm font-medium border-b-2 transition ${
-                    activeTab === 'history'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <History size={14} className="inline mr-1.5" />
-                  Geçmiş ({syncLogs.length})
-                </button>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as typeof activeTab)} className="flex-1 flex flex-col overflow-hidden">
+              <div className="bg-white border-b border-gray-200 px-6">
+                <TabsList className="bg-transparent h-auto p-0 gap-6">
+                  <TabsTrigger value="queries" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-3">
+                    <Settings2 className="h-3.5 w-3.5 mr-1.5" />
+                    Sorgular ({queries.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="dwh" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-3">
+                    <Warehouse className="h-3.5 w-3.5 mr-1.5" />
+                    DWH
+                  </TabsTrigger>
+                  <TabsTrigger value="mappings" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-3">
+                    <Link2 className="h-3.5 w-3.5 mr-1.5" />
+                    Eşlemeler
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 py-3">
+                    <History className="h-3.5 w-3.5 mr-1.5" />
+                    Geçmiş ({syncLogs.length})
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            </div>
 
-            {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {activeTab === 'queries' ? (
+              {/* Tab Content */}
+              <TabsContent value="queries" className="flex-1 overflow-y-auto p-6 mt-0">
                 <QueriesPanel
                   connection={selectedConn}
                   queries={queries}
@@ -518,7 +502,14 @@ export function DataConnectionsPage() {
                     }
                   }}
                 />
-              ) : activeTab === 'mappings' ? (
+              </TabsContent>
+              <TabsContent value="dwh" className="flex-1 overflow-y-auto p-6 mt-0">
+                <DwhPanel
+                  connection={selectedConn}
+                  queries={queries}
+                />
+              </TabsContent>
+              <TabsContent value="mappings" className="flex-1 overflow-y-auto p-6 mt-0">
                 <MappingsPanel
                   connection={selectedConn}
                   queries={queries}
@@ -552,10 +543,11 @@ export function DataConnectionsPage() {
                   }}
                   onExecuteMapping={handleExecuteMapping}
                 />
-              ) : (
+              </TabsContent>
+              <TabsContent value="history" className="flex-1 overflow-y-auto p-6 mt-0">
                 <SyncLogsPanel logs={syncLogs} />
-              )}
-            </div>
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </div>
@@ -679,12 +671,9 @@ function QueriesPanel({
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Sorgular</h3>
-        <button
-          onClick={onCreateQuery}
-          className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 flex items-center gap-1.5"
-        >
-          <Plus size={14} /> Yeni Sorgu
-        </button>
+        <Button size="sm" onClick={onCreateQuery}>
+          <Plus className="h-3.5 w-3.5 mr-1.5" /> Yeni Sorgu
+        </Button>
       </div>
 
       {queries.length === 0 ? (
@@ -932,66 +921,58 @@ function ConnectionFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto text-gray-900">
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h3 className="text-lg font-bold">{isEdit ? 'Bağlantı Düzenle' : 'Yeni Bağlantı'}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-        </div>
-        <div className="px-6 py-4 space-y-4">
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Bağlantı Düzenle' : 'Yeni Bağlantı'}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kod *</label>
-              <input value={form.code} onChange={(e) => setForm({...form, code: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm" placeholder="SAP_PROD" />
+            <div className="space-y-1.5">
+              <Label>Kod *</Label>
+              <Input value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} placeholder="SAP_PROD" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tip *</label>
+            <div className="space-y-1.5">
+              <Label>Tip *</Label>
               <select value={form.connection_type} onChange={(e) => setForm({...form, connection_type: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm">
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
                 <option value="file_upload">Dosya (CSV/Excel/Parquet)</option>
                 <option value="sap_odata">SAP OData</option>
                 <option value="hana_db">HANA DB</option>
               </select>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ad *</label>
-            <input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm" placeholder="SAP Uretim Sistemi" />
+          <div className="space-y-1.5">
+            <Label>Ad *</Label>
+            <Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} placeholder="SAP Üretim Sistemi" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
-            <input value={form.description} onChange={(e) => setForm({...form, description: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm" />
+          <div className="space-y-1.5">
+            <Label>Açıklama</Label>
+            <Input value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} />
           </div>
 
           {form.connection_type !== 'file_upload' && (
             <>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Host</label>
-                  <input value={form.host} onChange={(e) => setForm({...form, host: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm"
+                <div className="space-y-1.5">
+                  <Label>Host</Label>
+                  <Input value={form.host} onChange={(e) => setForm({...form, host: e.target.value})}
                     placeholder={form.connection_type === 'sap_odata' ? 'https://sap.example.com' : 'hana-host.example.com'} />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
-                  <input type="number" value={form.port} onChange={(e) => setForm({...form, port: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm"
-                    placeholder={form.connection_type === 'hana_db' ? '443' : '443'} />
+                <div className="space-y-1.5">
+                  <Label>Port</Label>
+                  <Input type="number" value={form.port} onChange={(e) => setForm({...form, port: e.target.value})}
+                    placeholder="443" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kullanıcı Adı</label>
-                  <input value={form.username} onChange={(e) => setForm({...form, username: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm" />
+                <div className="space-y-1.5">
+                  <Label>Kullanıcı Adı</Label>
+                  <Input value={form.username} onChange={(e) => setForm({...form, username: e.target.value})} />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Şifre</label>
-                  <input type="password" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm"
+                <div className="space-y-1.5">
+                  <Label>Şifre</Label>
+                  <Input type="password" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})}
                     placeholder={isEdit ? '(değiştirilmezse boş bırakın)' : ''} />
                 </div>
               </div>
@@ -999,47 +980,42 @@ function ConnectionFormModal({
           )}
 
           {form.connection_type === 'hana_db' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Veritabanı Adı</label>
-              <input value={form.database_name} onChange={(e) => setForm({...form, database_name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm" />
+            <div className="space-y-1.5">
+              <Label>Veritabanı Adı</Label>
+              <Input value={form.database_name} onChange={(e) => setForm({...form, database_name: e.target.value})} />
             </div>
           )}
 
           {form.connection_type === 'sap_odata' && (
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">SAP Client</label>
-                <input value={form.sap_client} onChange={(e) => setForm({...form, sap_client: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm" placeholder="100" />
+              <div className="space-y-1.5">
+                <Label>SAP Client</Label>
+                <Input value={form.sap_client} onChange={(e) => setForm({...form, sap_client: e.target.value})} placeholder="100" />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Service Path</label>
-                <input value={form.sap_service_path} onChange={(e) => setForm({...form, sap_service_path: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm" placeholder="/sap/opu/odata/sap/API_BUSINESS_PARTNER" />
+              <div className="space-y-1.5">
+                <Label>Service Path</Label>
+                <Input value={form.sap_service_path} onChange={(e) => setForm({...form, sap_service_path: e.target.value})} placeholder="/sap/opu/odata/sap/API_BUSINESS_PARTNER" />
               </div>
             </div>
           )}
         </div>
-        <div className="flex items-center justify-between px-6 py-4 border-t bg-gray-50 rounded-b-xl">
+        <DialogFooter className="flex items-center justify-between sm:justify-between">
           {form.connection_type !== 'file_upload' ? (
-            <button onClick={handleTest} disabled={testing}
-              className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-white flex items-center gap-1.5 disabled:opacity-50">
-              {testing ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+            <Button variant="outline" onClick={handleTest} disabled={testing}>
+              {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Zap className="h-3.5 w-3.5 mr-1.5" />}
               Test Et
-            </button>
+            </Button>
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-white">İptal</button>
-            <button onClick={handleSave} disabled={saving}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5">
-              {saving && <Loader2 size={14} className="animate-spin" />}
+            <Button variant="outline" onClick={onClose}>İptal</Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
               {isEdit ? 'Güncelle' : 'Oluştur'}
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

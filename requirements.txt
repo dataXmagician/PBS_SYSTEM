@@ -47,6 +47,9 @@ pandas>=2.1.0
 openpyxl>=3.1.0
 pyarrow>=14.0.0
 
+# Scheduling
+apscheduler>=3.10.0
+
 # Utilities
 requests==2.31.0
 python-dateutil==2.8.2

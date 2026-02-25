@@ -12,8 +12,12 @@ import {
   FileText,
   FileSpreadsheet,
   Cable,
+  Workflow,
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 interface LayoutContextType {
   isCollapsed: boolean;
@@ -93,6 +97,12 @@ function Sidebar() {
       path: '/data-connections',
       icon: Cable,
       description: 'Dış kaynak bağlantıları',
+    },
+    {
+      label: 'Veri Akışı',
+      path: '/data-flows',
+      icon: Workflow,
+      description: 'Pipeline görünümü ve eşlemeler',
     },
     {
       label: 'Analytics',
@@ -194,7 +204,7 @@ function Sidebar() {
       </nav>
 
       {/* Divider */}
-      <div className="border-t border-slate-700 mx-3"></div>
+      <Separator className="mx-3 bg-slate-700" />
 
       {/* Settings & Logout */}
       <div className="px-3 py-4 space-y-2">
@@ -261,6 +271,7 @@ function Header() {
     '/analytics': { title: 'Analytics', description: 'Detaylı analiz ve grafikler' },
     '/audit-logs': { title: 'Audit Logs', description: 'Sistem aktivite kayıtları' },
     '/data-connections': { title: 'Veri Bağlantıları', description: 'Dış kaynak bağlantıları ve veri aktarımı' },
+    '/data-flows': { title: 'Veri Akışı', description: 'Pipeline görünümü ve veri eşlemeleri' },
   };
 
   // Check for dynamic routes
@@ -282,14 +293,14 @@ function Header() {
           <h2 className="text-2xl font-bold text-gray-900">{current.title}</h2>
           <p className="text-gray-500 text-sm">{current.description}</p>
         </div>
-        <div className="flex items-center gap-4">
-          <button className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="relative">
             <Bell size={20} />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-          </button>
-          <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">
+          </Button>
+          <Button variant="ghost" size="icon">
             <Settings size={20} />
-          </button>
+          </Button>
         </div>
       </div>
     </header>

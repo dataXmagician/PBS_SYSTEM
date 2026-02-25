@@ -19,31 +19,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ============ Create Enums ============
+    # ============ Create Enums (raw SQL with IF NOT EXISTS) ============
 
-    dwhtablesourcetype = postgresql.ENUM(
-        'staging_copy', 'custom', 'staging_modified',
-        name='dwhtablesourcetype', create_type=False
-    )
-    dwhtablesourcetype.create(op.get_bind(), checkfirst=True)
-
-    dwhloadstrategy = postgresql.ENUM(
-        'full', 'incremental', 'append',
-        name='dwhloadstrategy', create_type=False
-    )
-    dwhloadstrategy.create(op.get_bind(), checkfirst=True)
-
-    dwhtransferstatus = postgresql.ENUM(
-        'pending', 'running', 'success', 'failed',
-        name='dwhtransferstatus', create_type=False
-    )
-    dwhtransferstatus.create(op.get_bind(), checkfirst=True)
-
-    dwhschedulefrequency = postgresql.ENUM(
-        'manual', 'hourly', 'daily', 'weekly', 'monthly', 'cron',
-        name='dwhschedulefrequency', create_type=False
-    )
-    dwhschedulefrequency.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'dwhtablesourcetype') THEN CREATE TYPE dwhtablesourcetype AS ENUM ('staging_copy', 'custom', 'staging_modified'); END IF; END $$;")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'dwhloadstrategy') THEN CREATE TYPE dwhloadstrategy AS ENUM ('full', 'incremental', 'append'); END IF; END $$;")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'dwhtransferstatus') THEN CREATE TYPE dwhtransferstatus AS ENUM ('pending', 'running', 'success', 'failed'); END IF; END $$;")
+    op.execute("DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'dwhschedulefrequency') THEN CREATE TYPE dwhschedulefrequency AS ENUM ('manual', 'hourly', 'daily', 'weekly', 'monthly', 'cron'); END IF; END $$;")
 
     # ============ Create Tables ============
 
@@ -55,7 +36,7 @@ def upgrade() -> None:
         sa.Column('code', sa.String(100), nullable=False),
         sa.Column('name', sa.String(200), nullable=False),
         sa.Column('description', sa.String(500), nullable=True),
-        sa.Column('source_type', sa.Enum('staging_copy', 'custom', 'staging_modified', name='dwhtablesourcetype', create_type=False), nullable=False),
+        sa.Column('source_type', postgresql.ENUM('staging_copy', 'custom', 'staging_modified', name='dwhtablesourcetype', create_type=False), nullable=False),
         sa.Column('source_query_id', sa.Integer(), nullable=True),
         sa.Column('table_name', sa.String(100), nullable=False),
         sa.Column('table_created', sa.Boolean(), nullable=False, server_default='false'),
@@ -77,7 +58,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('dwh_table_id', sa.Integer(), nullable=False),
         sa.Column('column_name', sa.String(200), nullable=False),
-        sa.Column('data_type', sa.Enum('string', 'integer', 'decimal', 'boolean', 'date', 'datetime', name='columndatatype', create_type=False), nullable=False, server_default='string'),
+        sa.Column('data_type', postgresql.ENUM('string', 'integer', 'decimal', 'boolean', 'date', 'datetime', name='columndatatype', create_type=False), nullable=False, server_default='string'),
         sa.Column('is_nullable', sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('is_primary_key', sa.Boolean(), nullable=False, server_default='false'),
         sa.Column('is_incremental_key', sa.Boolean(), nullable=False, server_default='false'),
@@ -99,7 +80,7 @@ def upgrade() -> None:
         sa.Column('source_query_id', sa.Integer(), nullable=True),
         sa.Column('name', sa.String(200), nullable=False),
         sa.Column('description', sa.String(500), nullable=True),
-        sa.Column('load_strategy', sa.Enum('full', 'incremental', 'append', name='dwhloadstrategy', create_type=False), nullable=False, server_default='full'),
+        sa.Column('load_strategy', postgresql.ENUM('full', 'incremental', 'append', name='dwhloadstrategy', create_type=False), nullable=False, server_default='full'),
         sa.Column('incremental_column', sa.String(200), nullable=True),
         sa.Column('last_incremental_value', sa.String(500), nullable=True),
         sa.Column('column_mapping', postgresql.JSONB(), nullable=True),
@@ -118,7 +99,7 @@ def upgrade() -> None:
         'dwh_schedules',
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('transfer_id', sa.Integer(), nullable=False),
-        sa.Column('frequency', sa.Enum('manual', 'hourly', 'daily', 'weekly', 'monthly', 'cron', name='dwhschedulefrequency', create_type=False), nullable=False, server_default='manual'),
+        sa.Column('frequency', postgresql.ENUM('manual', 'hourly', 'daily', 'weekly', 'monthly', 'cron', name='dwhschedulefrequency', create_type=False), nullable=False, server_default='manual'),
         sa.Column('cron_expression', sa.String(100), nullable=True),
         sa.Column('hour', sa.Integer(), nullable=True),
         sa.Column('minute', sa.Integer(), nullable=True, server_default='0'),
@@ -140,7 +121,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('uuid', sa.String(36), nullable=False),
         sa.Column('transfer_id', sa.Integer(), nullable=False),
-        sa.Column('status', sa.Enum('pending', 'running', 'success', 'failed', name='dwhtransferstatus', create_type=False), nullable=False, server_default='pending'),
+        sa.Column('status', postgresql.ENUM('pending', 'running', 'success', 'failed', name='dwhtransferstatus', create_type=False), nullable=False, server_default='pending'),
         sa.Column('started_at', sa.DateTime(), nullable=True),
         sa.Column('completed_at', sa.DateTime(), nullable=True),
         sa.Column('total_rows', sa.Integer(), nullable=True),
@@ -162,7 +143,7 @@ def upgrade() -> None:
         sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
         sa.Column('uuid', sa.String(36), nullable=False),
         sa.Column('dwh_table_id', sa.Integer(), nullable=False),
-        sa.Column('target_type', sa.Enum('master_data', 'system_version', 'system_period', 'system_parameter', 'budget_entry', name='mappingtargettype', create_type=False), nullable=False),
+        sa.Column('target_type', postgresql.ENUM('master_data', 'system_version', 'system_period', 'system_parameter', 'budget_entry', name='mappingtargettype', create_type=False), nullable=False),
         sa.Column('target_entity_id', sa.Integer(), nullable=True),
         sa.Column('target_definition_id', sa.Integer(), nullable=True),
         sa.Column('target_version_id', sa.Integer(), nullable=True),

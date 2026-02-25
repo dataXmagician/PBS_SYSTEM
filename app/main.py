@@ -33,6 +33,12 @@ from app.api.v1 import budget_entries
 # Data Connections Routes
 from app.api.v1 import data_connections
 
+# DWH Routes
+from app.api.v1 import dwh
+
+# Data Flow Routes
+from app.api.v1 import data_flows
+
 # Logger setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -85,6 +91,12 @@ app.include_router(budget_entries.router, prefix="/api/v1")
 
 # Data Connections Routes
 app.include_router(data_connections.router, prefix="/api/v1")
+
+# DWH Routes
+app.include_router(dwh.router, prefix="/api/v1")
+
+# Data Flow Routes
+app.include_router(data_flows.router, prefix="/api/v1")
 
 # Health Check Endpoint
 @app.get("/health", tags=["Health"])
@@ -234,6 +246,27 @@ async def startup_event():
     logger.info(f"📊 Database: {settings.DATABASE_URL}")
     logger.info(f"🔄 Redis: {settings.REDIS_URL}")
 
+    # APScheduler baslat
+    try:
+        from app.scheduler import init_scheduler, start_scheduler
+        from app.services.dwh_schedule_service import load_all_schedules
+        from app.db.session import get_session_local
+
+        init_scheduler()
+        start_scheduler()
+
+        # Mevcut schedule'lari yukle
+        SessionLocal = get_session_local()
+        db = SessionLocal()
+        try:
+            load_all_schedules(db)
+        finally:
+            db.close()
+
+        logger.info("📅 APScheduler başlatıldı.")
+    except Exception as e:
+        logger.warning(f"APScheduler başlatılamadı (normal olabilir): {e}")
+
 # Shutdown Event
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -241,6 +274,14 @@ async def shutdown_event():
     Uygulama kapatıldığında
     """
     logger.info("🛑 Budget System API kapatılıyor...")
+
+    # APScheduler durdur
+    try:
+        from app.scheduler import shutdown_scheduler
+        shutdown_scheduler()
+        logger.info("📅 APScheduler durduruldu.")
+    except Exception:
+        pass
 
 if __name__ == "__main__":
     import uvicorn

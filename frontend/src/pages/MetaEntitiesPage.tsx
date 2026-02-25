@@ -16,6 +16,17 @@ import {
 } from 'lucide-react';
 import { metaEntitiesApi, metaAttributesApi, masterDataApi } from '../services/masterDataApi';
 
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import { PageHeader } from '@/components/ui/page-header';
+
 type AttributeType = 'string' | 'integer' | 'decimal' | 'boolean' | 'date' | 'datetime' | 'list' | 'reference';
 
 interface MetaAttribute {
@@ -112,30 +123,25 @@ export function MetaEntitiesPage() {
 
   return (
     <div className="p-6 text-gray-900">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Anaveri Tipleri</h1>
-          <p className="text-gray-500 mt-1">Dinamik anaveri yapılarını yönetin</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-        >
-          <Plus size={20} />
-          Yeni Anaveri Tipi
-        </button>
-      </div>
+      <PageHeader
+        title="Anaveri Tipleri"
+        description="Dinamik anaveri yapılarını yönetin"
+        actions={
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus size={20} />
+            Yeni Anaveri Tipi
+          </Button>
+        }
+      />
 
       {/* Search */}
       <div className="relative mb-6">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-        <input
-          type="text"
+        <Input
           placeholder="Anaveri tipi ara..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+          className="pl-10 bg-white text-gray-900"
         />
       </div>
 
@@ -149,53 +155,59 @@ export function MetaEntitiesPage() {
           {filteredEntities.map((entity) => {
             const IconComponent = iconMap[entity.icon] || Database;
             return (
-              <div
+              <Card
                 key={entity.id}
-                className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg transition cursor-pointer text-gray-900"
+                className="bg-white hover:shadow-lg transition cursor-pointer text-gray-900"
                 onClick={() => navigate(`/master-data/${entity.id}`)}
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-3 rounded-lg bg-${entity.color}-100`}>
-                      <IconComponent className={`text-${entity.color}-600`} size={24} />
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-lg bg-${entity.color}-100`}>
+                        <IconComponent className={`text-${entity.color}-600`} size={24} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{entity.default_name}</h3>
+                        <p className="text-sm text-gray-500">{entity.code}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{entity.default_name}</h3>
-                      <p className="text-sm text-gray-500">{entity.code}</p>
-                    </div>
+                    <ChevronRight className="text-gray-400" size={20} />
                   </div>
-                  <ChevronRight className="text-gray-400" size={20} />
-                </div>
 
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <span>{entity.record_count} kayıt</span>
-                    <span>{entity.attributes?.length || 0} alan</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/meta-entities/${entity.id}/edit`);
-                      }}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    {!entity.is_system && (
-                      <button
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <span>{entity.record_count} kayıt</span>
+                      <span>{entity.attributes?.length || 0} alan</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400 hover:text-blue-600"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setDeleteModal(entity);
+                          navigate(`/meta-entities/${entity.id}/edit`);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
                       >
-                        <Trash2 size={16} />
-                      </button>
-                    )}
+                        <Edit size={16} />
+                      </Button>
+                      {!entity.is_system && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteModal(entity);
+                          }}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             );
           })}
 
@@ -334,19 +346,21 @@ function CreateEntityModal({ onClose, onCreated }: { onClose: () => void; onCrea
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto text-gray-900">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Yeni Anaveri Tipi</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span className={`px-3 py-1 rounded-full ${step === 1 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}>
-              1. Temel Bilgiler
-            </span>
-            <span className={`px-3 py-1 rounded-full ${step === 2 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100'}`}>
-              2. Alanlar
-            </span>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto text-gray-900">
+        <DialogHeader>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Yeni Anaveri Tipi</DialogTitle>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Badge variant={step === 1 ? 'info' : 'secondary'} className="rounded-full">
+                1. Temel Bilgiler
+              </Badge>
+              <Badge variant={step === 2 ? 'info' : 'secondary'} className="rounded-full">
+                2. Alanlar
+              </Badge>
+            </div>
           </div>
-        </div>
+        </DialogHeader>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">{error}</div>
@@ -356,59 +370,46 @@ function CreateEntityModal({ onClose, onCreated }: { onClose: () => void; onCrea
           <>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kod *</label>
-                <input
-                  type="text"
+                <Label>Kod *</Label>
+                <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase())}
                   placeholder="CUSTOMER"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  className="mt-1 bg-white text-gray-900"
                 />
                 <p className="text-xs text-gray-500 mt-1">Benzersiz tanımlayıcı (büyük harf)</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ad *</label>
-                <input
-                  type="text"
+                <Label>Ad *</Label>
+                <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Müşteri"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  className="mt-1 bg-white text-gray-900"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+                <Label>Açıklama</Label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="İsteğe bağlı açıklama..."
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                 />
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-              >
+            <DialogFooter className="mt-6">
+              <Button variant="outline" onClick={onClose}>
                 İptal
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                disabled={!code || !name}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
+              </Button>
+              <Button onClick={() => setStep(2)} disabled={!code || !name}>
                 Devam Et
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </>
         ) : (
           <>
@@ -433,17 +434,19 @@ function CreateEntityModal({ onClose, onCreated }: { onClose: () => void; onCrea
                           {DATA_TYPES.find((t) => t.value === attr.dataType)?.label}
                         </span>
                         {attr.isRequired && (
-                          <span className="ml-2 px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded">
+                          <Badge variant="destructive" className="ml-2 text-xs">
                             Zorunlu
-                          </span>
+                          </Badge>
                         )}
                       </div>
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-gray-400 hover:text-red-600"
                         onClick={() => handleRemoveAttribute(index)}
-                        className="p-1 text-gray-400 hover:text-red-600"
                       >
                         <X size={18} />
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -454,31 +457,29 @@ function CreateEntityModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 <h4 className="text-sm font-medium text-gray-900 mb-3">Yeni Alan Ekle</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-gray-700 mb-1">Kod</label>
-                    <input
-                      type="text"
+                    <Label className="text-xs">Kod</Label>
+                    <Input
                       value={attrCode}
                       onChange={(e) => setAttrCode(e.target.value.toUpperCase())}
                       placeholder="EMAIL"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900"
+                      className="mt-1 text-sm bg-white text-gray-900"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-700 mb-1">Etiket</label>
-                    <input
-                      type="text"
+                    <Label className="text-xs">Etiket</Label>
+                    <Input
                       value={attrLabel}
                       onChange={(e) => setAttrLabel(e.target.value)}
                       placeholder="E-posta"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900"
+                      className="mt-1 text-sm bg-white text-gray-900"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-700 mb-1">Veri Tipi</label>
+                    <Label className="text-xs">Veri Tipi</Label>
                     <select
                       value={attrType}
                       onChange={(e) => setAttrType(e.target.value as AttributeType)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900"
+                      className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900"
                     >
                       {DATA_TYPES.map((t) => (
                         <option key={t.value} value={t.value}>
@@ -502,30 +503,22 @@ function CreateEntityModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
                 {attrType === 'list' && (
                   <div className="mt-3">
-                    <label className="block text-xs text-gray-700 mb-1">Seçenekler</label>
-                    <div className="flex gap-2 mb-2">
-                      <input
-                        type="text"
+                    <Label className="text-xs">Seçenekler</Label>
+                    <div className="flex gap-2 mb-2 mt-1">
+                      <Input
                         value={newOption}
                         onChange={(e) => setNewOption(e.target.value)}
                         placeholder="Seçenek ekle"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900"
+                        className="flex-1 text-sm bg-white text-gray-900"
                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
                       />
-                      <button
-                        type="button"
-                        onClick={handleAddOption}
-                        className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm text-gray-700"
-                      >
+                      <Button variant="secondary" size="sm" onClick={handleAddOption}>
                         Ekle
-                      </button>
+                      </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {attrOptions.map((opt) => (
-                        <span
-                          key={opt}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs"
-                        >
+                        <Badge key={opt} variant="info" className="gap-1">
                           {opt}
                           <button
                             type="button"
@@ -533,52 +526,39 @@ function CreateEntityModal({ onClose, onCreated }: { onClose: () => void; onCrea
                           >
                             <X size={12} />
                           </button>
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  className="mt-3 w-full"
                   onClick={handleAddAttribute}
                   disabled={!attrCode || !attrLabel}
-                  className="mt-3 w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 text-sm"
                 >
-                  <Plus size={16} className="inline mr-1" />
+                  <Plus size={16} className="mr-1" />
                   Alan Ekle
-                </button>
+                </Button>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-              >
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep(1)}>
                 Geri
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-              >
+              </Button>
+              <Button variant="outline" onClick={onClose}>
                 İptal
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={loading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
+              </Button>
+              <Button onClick={handleSubmit} disabled={loading}>
                 {loading ? 'Oluşturuluyor...' : 'Oluştur'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -605,17 +585,19 @@ function DeleteEntityModal({
   const canDelete = entity.record_count === 0 || (deleteRecords && confirmText === entity.code);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md text-gray-900">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-red-100 rounded-full">
-            <AlertTriangle className="text-red-600" size={24} />
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md text-gray-900">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-red-100 rounded-full">
+              <AlertTriangle className="text-red-600" size={24} />
+            </div>
+            <div>
+              <DialogTitle>Anaveri Tipini Sil</DialogTitle>
+              <p className="text-sm text-gray-500">{entity.default_name} ({entity.code})</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Anaveri Tipini Sil</h2>
-            <p className="text-sm text-gray-500">{entity.default_name} ({entity.code})</p>
-          </div>
-        </div>
+        </DialogHeader>
 
         {entity.record_count > 0 ? (
           <div className="mb-4">
@@ -643,12 +625,11 @@ function DeleteEntityModal({
                 <p className="text-sm text-gray-600 mb-2">
                   Onaylamak için <strong>{entity.code}</strong> yazın:
                 </p>
-                <input
-                  type="text"
+                <Input
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
                   placeholder={entity.code}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                  className="bg-white text-gray-900"
                 />
               </div>
             )}
@@ -659,24 +640,19 @@ function DeleteEntityModal({
           </p>
         )}
 
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
             İptal
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="destructive"
             onClick={handleDelete}
             disabled={!canDelete || loading}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
           >
             {loading ? 'Siliniyor...' : 'Sil'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

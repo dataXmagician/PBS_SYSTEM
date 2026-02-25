@@ -19,6 +19,20 @@ import {
 } from 'lucide-react';
 import { metaEntitiesApi, masterDataApi, metaAttributesApi } from '../services/masterDataApi';
 
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table, TableBody, TableCell, TableHead,
+  TableHeader, TableRow,
+} from '@/components/ui/table';
+import { PageHeader } from '@/components/ui/page-header';
+
 type AttributeType = 'string' | 'integer' | 'decimal' | 'boolean' | 'date' | 'datetime' | 'list' | 'reference';
 
 interface MetaAttribute {
@@ -226,135 +240,118 @@ export function MasterDataPage() {
     <div className="p-6 text-gray-900">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => navigate('/meta-entities')}
-          className="p-2 hover:bg-gray-100 rounded-lg text-gray-700"
         >
           <ArrowLeft size={20} />
-        </button>
+        </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">
             {entity?.default_name || 'Yükleniyor...'}
           </h1>
           <p className="text-gray-500">{entity?.code}</p>
         </div>
-        <button
-          onClick={() => navigate(`/meta-entities/${entityId}/edit`)}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-        >
+        <Button variant="outline" onClick={() => navigate(`/meta-entities/${entityId}/edit`)}>
           <Settings size={18} />
           Alanları Düzenle
-        </button>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
+        </Button>
+        <Button onClick={() => setShowCreateModal(true)}>
           <Plus size={20} />
           Yeni Kayıt
-        </button>
+        </Button>
       </div>
 
       {/* Search & Actions */}
       <div className="flex gap-4 mb-6">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
+          <Input
             placeholder="Kayıt ara..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+            className="pl-10 bg-white text-gray-900"
           />
         </div>
-        <button
-          onClick={() => setShowImportModal(true)}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-        >
+        <Button variant="outline" onClick={() => setShowImportModal(true)}>
           <Upload size={18} />
           İçe Aktar
-        </button>
-        <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700 disabled:opacity-50"
-        >
+        </Button>
+        <Button variant="outline" onClick={handleExport} disabled={exporting}>
           <Download size={18} />
           {exporting ? 'İndiriliyor...' : 'Dışa Aktar'}
-        </button>
+        </Button>
       </div>
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden text-gray-900">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Kod</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Ad</th>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50">
+                <TableHead>Kod</TableHead>
+                <TableHead>Ad</TableHead>
                 {visibleAttributes.slice(0, 4).map((attr) => (
-                  <th key={attr.id} className="px-4 py-3 text-left text-sm font-medium text-gray-600">
-                    {attr.default_label}
-                  </th>
+                  <TableHead key={attr.id}>{attr.default_label}</TableHead>
                 ))}
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Durum</th>
-                <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">İşlemler</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
+                <TableHead>Durum</TableHead>
+                <TableHead className="text-right">İşlemler</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {loading ? (
-                <tr>
-                  <td colSpan={7 + visibleAttributes.slice(0, 4).length} className="px-4 py-8 text-center text-gray-500">
+                <TableRow>
+                  <TableCell colSpan={7 + visibleAttributes.slice(0, 4).length} className="text-center py-8 text-gray-500">
                     Yükleniyor...
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : records.length === 0 ? (
-                <tr>
-                  <td colSpan={7 + visibleAttributes.slice(0, 4).length} className="px-4 py-8 text-center text-gray-500">
+                <TableRow>
+                  <TableCell colSpan={7 + visibleAttributes.slice(0, 4).length} className="text-center py-8 text-gray-500">
                     {search ? 'Arama sonucu bulunamadı' : 'Henüz kayıt yok'}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 records.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{record.code}</td>
-                    <td className="px-4 py-3 text-gray-700">{record.name}</td>
+                  <TableRow key={record.id}>
+                    <TableCell className="font-medium text-gray-900">{record.code}</TableCell>
+                    <TableCell className="text-gray-700">{record.name}</TableCell>
                     {visibleAttributes.slice(0, 4).map((attr) => (
-                      <td key={attr.id} className="px-4 py-3 text-gray-600">
+                      <TableCell key={attr.id} className="text-gray-600">
                         {record.flat_values?.[attr.code] || '-'}
-                      </td>
+                      </TableCell>
                     ))}
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          record.is_active
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
+                    <TableCell>
+                      <Badge variant={record.is_active ? 'success' : 'secondary'}>
                         {record.is_active ? 'Aktif' : 'Pasif'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-blue-600"
                           onClick={() => setEditingRecord(record)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
                         >
                           <Edit size={16} />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-red-600"
                           onClick={() => openDeleteConfirm(record)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
                         >
                           <Trash2 size={16} />
-                        </button>
+                        </Button>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         {/* Pagination */}
@@ -364,20 +361,24 @@ export function MasterDataPage() {
               Sayfa {page} / {totalPages}
             </p>
             <div className="flex gap-2">
-              <button
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 bg-white text-gray-700"
               >
                 <ChevronLeft size={18} />
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 bg-white text-gray-700"
               >
                 <ChevronRight size={18} />
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -649,11 +650,11 @@ function MasterDataModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto text-gray-900">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
-          {record ? 'Kayıt Düzenle' : 'Yeni Kayıt'}
-        </h2>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto text-gray-900">
+        <DialogHeader>
+          <DialogTitle>{record ? 'Kayıt Düzenle' : 'Yeni Kayıt'}</DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit}>
           {error && (
@@ -662,34 +663,32 @@ function MasterDataModal({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Kod *</label>
-              <input
-                type="text"
+              <Label>Kod *</Label>
+              <Input
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                className="mt-1 bg-white text-gray-900"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ad *</label>
-              <input
-                type="text"
+              <Label>Ad *</Label>
+              <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900"
+                className="mt-1 bg-white text-gray-900"
               />
             </div>
 
             {editableAttributes.map((attr) => (
               <div key={attr.id}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Label>
                   {attr.default_label}
                   {attr.is_required && ' *'}
-                </label>
-                {renderField(attr)}
+                </Label>
+                <div className="mt-1">{renderField(attr)}</div>
               </div>
             ))}
 
@@ -712,25 +711,17 @@ function MasterDataModal({
             </div>
           </div>
 
-          <div className="flex gap-3 mt-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-            >
+          <DialogFooter className="mt-6">
+            <Button variant="outline" type="button" onClick={onClose}>
               İptal
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={loading}>
               {loading ? 'Kaydediliyor...' : 'Kaydet'}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -753,14 +744,16 @@ function DeleteConfirmModal({
   const isConfirmValid = confirmText.toUpperCase() === 'ONAY';
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-md text-gray-900 shadow-2xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-red-100 rounded-full">
-            <AlertTriangle className="text-red-600" size={24} />
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <DialogContent className="max-w-md text-gray-900">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-red-100 rounded-full">
+              <AlertTriangle className="text-red-600" size={24} />
+            </div>
+            <DialogTitle>Kaydı Sil</DialogTitle>
           </div>
-          <h2 className="text-xl font-bold text-gray-900">Kaydı Sil</h2>
-        </div>
+        </DialogHeader>
 
         <p className="text-gray-600 mb-2">
           <strong>"{recordName}"</strong> kaydını silmek istediğinize emin misiniz?
@@ -780,33 +773,25 @@ function DeleteConfirmModal({
           <p className="text-sm text-amber-800 mb-2">
             Bu işlemi onaylamak için aşağıya <strong>"ONAY"</strong> yazın:
           </p>
-          <input
-            type="text"
+          <Input
             value={confirmText}
             onChange={(e) => onConfirmTextChange(e.target.value)}
             placeholder="ONAY"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            className="bg-white text-gray-900 focus:ring-red-500"
             autoFocus
           />
         </div>
 
-        <div className="flex gap-3 mt-6">
-          <button
-            onClick={onCancel}
-            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700 font-medium transition"
-          >
+        <DialogFooter className="mt-6">
+          <Button variant="outline" onClick={onCancel}>
             İptal
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={!isConfirmValid}
-            className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+          </Button>
+          <Button variant="destructive" onClick={onConfirm} disabled={!isConfirmValid}>
             Sil
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -882,14 +867,11 @@ function ImportModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 w-full max-w-lg text-gray-900">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">CSV İçe Aktar</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-500">
-            <X size={20} />
-          </button>
-        </div>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg text-gray-900">
+        <DialogHeader>
+          <DialogTitle>CSV İçe Aktar</DialogTitle>
+        </DialogHeader>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-center gap-2">
@@ -932,23 +914,14 @@ function ImportModal({
               </div>
             )}
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setFile(null);
-                  setResult(null);
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-              >
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setFile(null); setResult(null); }}>
                 Yeni Dosya Yükle
-              </button>
-              <button
-                onClick={onImported}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
+              </Button>
+              <Button onClick={onImported}>
                 Kapat
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </div>
         ) : (
           <>
@@ -995,24 +968,17 @@ function ImportModal({
               <p>• Mevcut kodlar güncellenecek, yeni kodlar oluşturulacak</p>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 bg-white text-gray-700"
-              >
+            <DialogFooter className="mt-6">
+              <Button variant="outline" onClick={onClose}>
                 İptal
-              </button>
-              <button
-                onClick={handleImport}
-                disabled={!file || loading}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
+              </Button>
+              <Button onClick={handleImport} disabled={!file || loading}>
                 {loading ? 'Yükleniyor...' : 'İçe Aktar'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
